@@ -52,7 +52,19 @@ float snoise(vec3 v){
   vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.); m=m*m;
   return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
-float fbm(vec3 p){float s=0.,a=.5;for(int i=0;i<6;i++){s+=a*snoise(p);p=p*2.03+1.7;a*=.5;}return s;}
+// fbm with level of detail: keeps adding finer octaves until they'd be smaller than a pixel,
+// so detail stays sharp at any zoom. gPx = pixel footprint on the unit sphere, set at the top of main();
+// s = how much the caller scaled p.
+float gPx=0.;
+float fbm(vec3 p, float s){
+  float sum=0., a=.5, px=gPx*s;
+  for(int i=0;i<12;i++){
+    float w=1.-smoothstep(.25,.5,px);   // fade the last octave in instead of popping
+    if(w<=0.) break;
+    sum+=a*w*snoise(p); p=p*2.03+1.7; px*=2.03; a*=.5;
+  }
+  return sum;
+}
 vec3 hash3(vec3 p){p=vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6)));return fract(sin(p)*43758.5453);}
 // one crater per grid cell: a bowl with a raised rim
 float craters(vec3 p){
@@ -84,27 +96,28 @@ const bodyMat = new THREE.ShaderMaterial({
   uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater;
   varying vec3 vPos;
   float height(vec3 p){
-    float h=fbm(p*uFreq+uSeed)*(1.-.5*uCrater);
+    float h=fbm(p*uFreq+uSeed,uFreq)*(1.-.5*uCrater);
     if(uCrater>0.) h+=uCrater*(craters(p*2.5+uSeed)*.7+craters(p*6.+uSeed.yzx)*.35+craters(p*14.+uSeed.zxy)*.12);
     return h;
   }
   void main(){
     vec3 p=normalize(vPos), n=p, col;
+    gPx=length(fwidth(p));
     float water=0., t=0.;
     if(uGas>.5){
       // banded gas giant with turbulent edges and one big storm
-      float b=p.y*uBands+fbm(p*vec3(2.,7.,2.)+uSeed)*2.2;
+      float b=p.y*uBands+fbm(p*vec3(2.,7.,2.)+uSeed,7.)*2.2;
       col=mix(uLow,uHigh,sin(b)*.5+.5);
       col=mix(col,uRock,smoothstep(.3,.9,sin(b*.37+uSeed.x)*.5+.5)*.6);
       vec3 sd=normalize(vec3(cos(uSeed.x),.4*sin(uSeed.y),sin(uSeed.x)));
       float sw=snoise(p*9.+uSeed)*.04;
-      col=mix(col,uSnow,smoothstep(.2,.12,length((p-sd)*vec3(1.,2.4,1.))+sw));
+      col=mix(col,uSnow,1.-smoothstep(.12,.2,length((p-sd)*vec3(1.,2.4,1.))+sw));
     } else {
       float h=height(p);
       vec3 t1=normalize(cross(p, abs(p.y)<.99?vec3(0,1,0):vec3(1,0,0))), t2=cross(p,t1);
       water=step(h,uSea);
       if(water<.5){   // bump-map land from the height gradient
-        float e=.004, hx=height(normalize(p+t1*e)), hy=height(normalize(p+t2*e));
+        float e=max(gPx*.7,.00005), hx=height(normalize(p+t1*e)), hy=height(normalize(p+t2*e));
         n=normalize(p-(t1*(hx-h)+t2*(hy-h))/e*.06);
       }
       t=clamp((h-uSea)/(.65-uSea),0.,1.);
@@ -123,7 +136,7 @@ const bodyMat = new THREE.ShaderMaterial({
     c+=water*pow(max(dot(reflect(-uSun,n),v),0.),40.)*.6*(1.-uLava)*uSunCol;
     c+=uLava*water*col*1.5;                                    // glowing seas
     float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45);
-    c+=uCity*lights*vec3(1.,.72,.35)*smoothstep(.05,-.2,dot(p,uSun));   // night-side cities
+    c+=uCity*lights*vec3(1.,.72,.35)*(1.-smoothstep(-.2,.05,dot(p,uSun)));   // night-side cities
     c+=uAtmo*pow(1.-max(dot(p,v),0.),3.)*(.15+max(dot(p,uSun),0.))*.8*uSunCol;
     gl_FragColor=vec4(c,1.);
     #include <colorspace_fragment>
@@ -140,7 +153,8 @@ const cloudMat = new THREE.ShaderMaterial({
   varying vec3 vPos;
   void main(){
     vec3 p=normalize(vPos);
-    float c=fbm(p*vec3(2.,3.5,2.)+uSeed.zxy+uTime*.015);
+    gPx=length(fwidth(p));
+    float c=fbm(p*vec3(2.,3.5,2.)+uSeed.zxy+uTime*.015,3.5);
     float a=smoothstep(uCloud,uCloud+.2,c)*.95;
     gl_FragColor=vec4(uCol*(.006+smoothstep(-.15,1.,dot(p,uSun))*uSunCol),a);
     #include <colorspace_fragment>
@@ -173,7 +187,7 @@ const ringMat = new THREE.ShaderMaterial({
     float t=(length(vP.xy)-uIn)/(uOut-uIn);
     float b=n1(t*uK.x)*.5+n1(t*uK.y+9.)*.3+n1(t*uK.z+3.)*.2;
     float gap=smoothstep(.0,.03,abs(t-fract(uK.x*.013)*.6-.2));      // one Cassini-style gap
-    float a=b*gap*smoothstep(0.,.04,t)*smoothstep(1.,.9,t)*.85;
+    float a=b*gap*smoothstep(0.,.04,t)*(1.-smoothstep(.9,1.,t))*.85;
     float shadow=(dot(vW,uSunW)<0. && length(cross(vW,uSunW))<1.)?.08:1.;   // planet's shadow on the ring
     gl_FragColor=vec4(mix(uA,uB,b)*uSunCol*(.05+.95*shadow),a);
     #include <colorspace_fragment>
@@ -187,8 +201,9 @@ const nebulaMat = new THREE.ShaderMaterial({
   fragmentShader: NOISE + `uniform vec3 uSeed,uA,uB; varying vec3 vPos;
   void main(){
     vec3 p=normalize(vPos);
-    float m=smoothstep(-.05,.6,fbm(p*1.6+uSeed));
-    vec3 c=mix(uA,uB,fbm(p*3.+uSeed.yzx)*.6+.5)*m*m*.22;
+    gPx=length(fwidth(p))*8.;   // the backdrop stays soft; this caps it at a few octaves
+    float m=smoothstep(-.05,.6,fbm(p*1.6+uSeed,1.6));
+    vec3 c=mix(uA,uB,fbm(p*3.+uSeed.yzx,3.)*.6+.5)*m*m*.22;
     gl_FragColor=vec4(c,1.);
     #include <colorspace_fragment>
   }`,
@@ -200,7 +215,8 @@ const starMat = new THREE.ShaderMaterial({
   fragmentShader: NOISE + `uniform vec3 uSeed,uHot,uCool,uCam; uniform float uTime; varying vec3 vPos;
   void main(){
     vec3 p=normalize(vPos);
-    float n=fbm(p*3.+uSeed+uTime*.03);
+    gPx=length(fwidth(p));
+    float n=fbm(p*3.+uSeed+uTime*.03,3.);
     float g=snoise(p*40.+uTime*.3)*.5+.5;                         // granulation
     vec3 c=mix(uCool,uHot,smoothstep(-.35,.35,n))*(.8+.4*g);
     c*=.3+.7*sqrt(max(dot(p,normalize(uCam-p)),0.));             // limb darkening
@@ -250,7 +266,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45,1,.05,300);
 camera.position.set(0,1.1,3.4);   // a little above the equator so rings aren't edge-on
 const controls = new OrbitControls(camera, renderer.domElement);
-Object.assign(controls,{enablePan:false,enableDamping:true,minDistance:1.6,maxDistance:16});
+Object.assign(controls,{enablePan:false,enableDamping:true,minDistance:1.15,maxDistance:16});
 
 const SUN = new THREE.Vector3(1,.3,.3).normalize();
 const sunCol = new THREE.Color();
@@ -278,13 +294,13 @@ scene.add(sunSprite);
 
 const tilt = new THREE.Group(); scene.add(tilt);
 const planetMat = bodyMat.clone();
-const planet = new THREE.Mesh(new THREE.SphereGeometry(1,128,128), planetMat);
+const planet = new THREE.Mesh(new THREE.SphereGeometry(1,256,256), planetMat);
 const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.02,96,96), cloudMat);
 const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12,96,96), atmoMat);
 const rings = new THREE.Mesh(new THREE.RingGeometry(1,2,256,1), ringMat);
 rings.rotation.x = -Math.PI/2;
 tilt.add(planet, clouds, atmo, rings);
-const moonGeo = new THREE.SphereGeometry(1,64,64);
+const moonGeo = new THREE.SphereGeometry(1,128,128);
 let moons = [];   // orbiting bodies: {pivot, mesh, speed, kindName}
 let mode = 'planet', autoDist = null;
 const starMesh = new THREE.Mesh(new THREE.SphereGeometry(1,128,128), starMat);
@@ -400,6 +416,7 @@ function build(seed){
   const pick = a => a[Math.floor(r()*a.length)];
   const roll = r();
   mode = roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole';
+  controls.minDistance = 1.15;
   for (const o of [planet, clouds, atmo, rings]) o.visible = mode==='planet';
   for (const o of [starMesh, corona]) o.visible = mode==='star';
   for (const o of [horizon, disk, halo]) o.visible = mode==='blackhole';
@@ -413,6 +430,7 @@ function build(seed){
   if (mode==='star'){
     const size = {'blue giant':1.5,'red dwarf':.6,'orange dwarf':.85}[starName] ?? 1;
     starMesh.scale.setScalar(size);
+    controls.minDistance = size+.15;
     corona.scale.setScalar(size*4.4); corona.material.color.copy(starCol);
     starMat.uniforms.uSeed.value.set(r()*50,r()*50,r()*50);
     starMat.uniforms.uHot.value.copy(starCol);
