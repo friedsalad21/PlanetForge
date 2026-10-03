@@ -86,14 +86,14 @@ const col3 = () => ({value:new THREE.Color()});
 const bodyMat = new THREE.ShaderMaterial({
   uniforms: {
     uSeed:{value:new THREE.Vector3()}, uFreq:{value:1}, uSea:{value:0}, uIce:{value:.8}, uLava:{value:0},
-    uGas:{value:0}, uBands:{value:10}, uCity:{value:0}, uCrater:{value:0},
+    uGas:{value:0}, uBands:{value:10}, uCity:{value:0}, uCrater:{value:0}, uTime:{value:0},
     uDeep:col3(), uShallow:col3(), uSand:col3(), uLow:col3(), uHigh:col3(), uRock:col3(), uSnow:col3(), uAtmo:col3(),
     uSun:{value:new THREE.Vector3()}, uSunCol:col3(), uCam:{value:new THREE.Vector3()},
   },
   vertexShader: VERT,
   fragmentShader: NOISE + `
   uniform vec3 uSeed,uDeep,uShallow,uSand,uLow,uHigh,uRock,uSnow,uAtmo,uSun,uSunCol,uCam;
-  uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater;
+  uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater,uTime;
   varying vec3 vPos;
   float height(vec3 p){
     float h=fbm(p*uFreq+uSeed,uFreq)*(1.-.5*uCrater);
@@ -116,12 +116,26 @@ const bodyMat = new THREE.ShaderMaterial({
       float h=height(p);
       vec3 t1=normalize(cross(p, abs(p.y)<.99?vec3(0,1,0):vec3(1,0,0))), t2=cross(p,t1);
       water=step(h,uSea);
+      float depth=uSea-h;
       if(water<.5){   // bump-map land from the height gradient
         float e=max(gPx*.7,.00005), hx=height(normalize(p+t1*e)), hy=height(normalize(p+t2*e));
         n=normalize(p-(t1*(hx-h)+t2*(hy-h))/e*.06);
+      } else {        // moving waves: two noise scales, each fading out once smaller than a pixel
+        vec3 g=vec3(0.);
+        for(int k=0;k<3;k++){
+          float wf=70.*pow(4.,float(k)), fade=1.-smoothstep(.1,.45,gPx*wf);
+          if(fade<=0.) break;
+          vec3 q=p*wf+uSeed+uTime*vec3(.13,.08,.11)*float(k+1);
+          float w0=snoise(q);
+          g+=(t1*(snoise(q+t1*.3)-w0)+t2*(snoise(q+t2*.3)-w0))/.3*fade*.06/float(k+1);
+        }
+        n=normalize(p-g);
       }
       t=clamp((h-uSea)/(.65-uSea),0.,1.);
-      col=mix(uShallow,uDeep,clamp((uSea-h)/.35,0.,1.));
+      col=mix(uShallow,uDeep,smoothstep(0.,.3,depth));
+      col=mix(col,uShallow*1.6,1.-smoothstep(0.,.035,depth));            // bright coastal shallows
+      float foam=(1.-smoothstep(0.,.012,depth))*smoothstep(-.1,.5,snoise(p*180.+uSeed+uTime*.4));
+      col=mix(col,vec3(.85),foam*water*.7*(1.-uLava));                    // surf on the shoreline
       vec3 land=mix(uSand,uLow,smoothstep(0.,.04,t));
       land=mix(land,uHigh,smoothstep(.2,.5,t));
       land=mix(land,uRock,smoothstep(.5,.72,t));
@@ -129,11 +143,16 @@ const bodyMat = new THREE.ShaderMaterial({
       col=mix(col,land,1.-water);
       float ice=smoothstep(uIce,uIce+.04,abs(p.y)+h*.2);
       col=mix(col,uSnow,ice); water*=1.-ice; t+=ice;
+      if(ice>.5) n=p;
     }
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
     vec3 c=col*(.01+smoothstep(-.15,1.,ndl)*uSunCol);   // soft terminator
-    c+=water*pow(max(dot(reflect(-uSun,n),v),0.),40.)*.6*(1.-uLava)*uSunCol;
+    // water: tight sun glint + broad sheen, and sky reflection that grows at grazing angles (Fresnel)
+    float nh=max(dot(n,normalize(uSun+v)),0.), day=smoothstep(-.1,.25,dot(p,uSun));
+    float fres=.02+.98*pow(1.-max(dot(n,v),0.),5.);
+    float sky=pow(max(dot(reflect(-v,n),uSun),0.),3.);   // wave facets catching the bright sky near the sun
+    c+=water*(1.-uLava)*day*(uSunCol*(pow(nh,300.)*3.+pow(nh,25.)*.12)+uAtmo*(fres*.5+sky*(.15+fres)*.5));
     c+=uLava*water*col*1.5;                                    // glowing seas
     float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45);
     c+=uCity*lights*vec3(1.,.72,.35)*(1.-smoothstep(-.2,.05,dot(p,uSun)));   // night-side cities
@@ -535,6 +554,7 @@ function lightBody(mesh, sunW){
   u.uSun.value.copy(toLocal(mesh,sunW));
   u.uCam.value.copy(mesh.worldToLocal(camera.position.clone()));
   u.uSunCol.value.copy(sunCol);
+  u.uTime.value = clock.elapsedTime;
 }
 renderer.setAnimationLoop(()=>{
   const dt = clock.getDelta(), time = clock.elapsedTime;
