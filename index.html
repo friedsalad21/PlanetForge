@@ -103,7 +103,7 @@ const bodyMat = new THREE.ShaderMaterial({
   void main(){
     vec3 p=normalize(vPos), n=p, col;
     gPx=length(fwidth(p));
-    float water=0., t=0.;
+    float water=0., t=0., ice=0.;
     if(uGas>.5){
       // banded gas giant with turbulent edges and one big storm
       float b=p.y*uBands+fbm(p*vec3(2.,7.,2.)+uSeed,7.)*2.2;
@@ -136,14 +136,25 @@ const bodyMat = new THREE.ShaderMaterial({
       col=mix(col,uShallow*1.6,1.-smoothstep(0.,.035,depth));            // bright coastal shallows
       float foam=(1.-smoothstep(0.,.012,depth))*smoothstep(-.1,.5,snoise(p*180.+uSeed+uTime*.4));
       col=mix(col,vec3(.85),foam*water*.7*(1.-uLava));                    // surf on the shoreline
+      // snow/ice texture: drifts and blue-grey tones, plus thin pressure cracks once they're big enough to see
+      float iceN=fbm(p*12.+uSeed.zyx,12.);
+      vec3 snowCol=mix(uSnow,uSnow*vec3(.8,.89,1.),smoothstep(-.1,.5,iceN));
+      float crack=pow(1.-abs(snoise(p*35.+uSeed)),14.)*(1.-smoothstep(.2,.5,gPx*35.));
+      snowCol*=1.-crack*.4;
+      float slope=1.-dot(n,p);                     // 0 on flat ground
       vec3 land=mix(uSand,uLow,smoothstep(0.,.04,t));
       land=mix(land,uHigh,smoothstep(.2,.5,t));
       land=mix(land,uRock,smoothstep(.5,.72,t));
-      land=mix(land,uSnow,smoothstep(.78,.88,t));
+      land=mix(land,snowCol,smoothstep(.78,.88,t+iceN*.08)*(1.-smoothstep(.03,.12,slope)));   // snow slides off cliffs
       col=mix(col,land,1.-water);
-      float ice=smoothstep(uIce,uIce+.04,abs(p.y)+h*.2);
-      col=mix(col,uSnow,ice); water*=1.-ice; t+=ice;
-      if(ice>.5) n=p;
+      ice=smoothstep(uIce,uIce+.04,abs(p.y)+h*.2+iceN*.06);   // ragged cap edge
+      if(ice>.01){                                 // ice relief from the drift noise, blended over land/waves
+        float e=max(gPx*.7,.00005);
+        float ix=fbm(normalize(p+t1*e)*12.+uSeed.zyx,12.), iy=fbm(normalize(p+t2*e)*12.+uSeed.zyx,12.);
+        vec3 ni=normalize(p-(t1*(ix-iceN)+t2*(iy-iceN))/e*.004);
+        n=normalize(mix(n,ni,ice));               // ice sheets bury the terrain underneath
+      }
+      col=mix(col,snowCol,ice); water*=1.-ice; t+=ice;
     }
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
@@ -153,6 +164,7 @@ const bodyMat = new THREE.ShaderMaterial({
     float fres=.02+.98*pow(1.-max(dot(n,v),0.),5.);
     float sky=pow(max(dot(reflect(-v,n),uSun),0.),3.);   // wave facets catching the bright sky near the sun
     c+=water*(1.-uLava)*day*(uSunCol*(pow(nh,300.)*3.+pow(nh,25.)*.12)+uAtmo*(fres*.5+sky*(.15+fres)*.5));
+    c+=ice*day*uSunCol*pow(nh,60.)*.25;                        // icy sheen
     c+=uLava*water*col*1.5;                                    // glowing seas
     float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45);
     c+=uCity*lights*vec3(1.,.72,.35)*(1.-smoothstep(-.2,.05,dot(p,uSun)));   // night-side cities
@@ -197,18 +209,37 @@ const ringMat = new THREE.ShaderMaterial({
   side:THREE.DoubleSide, transparent:true, depthWrite:false,
   uniforms:{ uA:col3(), uB:col3(), uSunW:{value:new THREE.Vector3()}, uSunCol:col3(),
              uK:{value:new THREE.Vector3()}, uIn:{value:1.4}, uOut:{value:2.2} },
-  vertexShader:`varying vec3 vP,vW; void main(){ vP=position; vW=(modelMatrix*vec4(position,1.)).xyz;
+  vertexShader:`varying vec3 vP,vW,vNw; void main(){ vP=position; vW=(modelMatrix*vec4(position,1.)).xyz;
+    vNw=normalize(mat3(modelMatrix)*vec3(0,0,1));
     gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader:`uniform vec3 uA,uB,uSunW,uSunCol,uK; uniform float uIn,uOut; varying vec3 vP,vW;
+  fragmentShader:`uniform vec3 uA,uB,uSunW,uSunCol,uK; uniform float uIn,uOut; varying vec3 vP,vW,vNw;
   float h1(float x){return fract(sin(x*127.1)*43758.5);}
   float n1(float x){float i=floor(x);return mix(h1(i),h1(i+1.),smoothstep(0.,1.,fract(x)));}
+  // ringlets all the way down: octaves of 1D noise until they'd be thinner than a pixel
+  float ringlets(float x, float px){
+    float s=0., a=.5, norm=0.;
+    for(int i=0;i<10;i++){
+      float w=1.-smoothstep(.25,.5,px);
+      if(w<=0.) break;
+      s+=a*w*n1(x); norm+=a*w; x=x*2.13+5.7; px*=2.13; a*=.6;
+    }
+    return s/max(norm,1e-4);
+  }
   void main(){
-    float t=(length(vP.xy)-uIn)/(uOut-uIn);
-    float b=n1(t*uK.x)*.5+n1(t*uK.y+9.)*.3+n1(t*uK.z+3.)*.2;
+    float t=(length(vP.xy)-uIn)/(uOut-uIn), ft=fwidth(t);
+    float b=n1(t*uK.x)*.5+n1(t*uK.y+9.)*.3+n1(t*uK.z+3.)*.2;   // main band structure
+    b*=1.+(ringlets(t*uK.x*5.,ft*uK.x*5.)-.5)*.7;              // fine ringlets, sharper as you zoom in
+    // up close: grainy ice-particle sparkle in the ring plane
+    float k=600., grain=fract(sin(dot(floor(vP.xy*k),vec2(12.9898,78.233)))*43758.5);
+    b*=1.+(grain-.5)*.5*(1.-smoothstep(.3,.8,length(fwidth(vP.xy))*k));
     float gap=smoothstep(.0,.03,abs(t-fract(uK.x*.013)*.6-.2));      // one Cassini-style gap
-    float a=b*gap*smoothstep(0.,.04,t)*(1.-smoothstep(.9,1.,t))*.85;
+    float a=clamp(b*1.5-.1,0.,1.)*gap*smoothstep(0.,.04,t)*(1.-smoothstep(.9,1.,t))*.9;   // sparse bands go see-through
     float shadow=(dot(vW,uSunW)<0. && length(cross(vW,uSunW))<1.)?.08:1.;   // planet's shadow on the ring
-    gl_FragColor=vec4(mix(uA,uB,b)*uSunCol*(.05+.95*shadow),a);
+    // seen from the sunlit face the ring reflects; from the dark face only thin parts glow with light passing through
+    float sideS=dot(vNw,uSunW), sideV=dot(vNw,cameraPosition-vW);
+    float light=sideS*sideV>0. ? .75+.5*abs(sideS) : .3+.6*(1.-a);
+    vec3 col=mix(uA,uB,b)*mix(.8,1.2,n1(t*uK.z*2.+4.));        // slight colour drift across the rings
+    gl_FragColor=vec4(col*uSunCol*light*(.05+.95*shadow),a);
     #include <colorspace_fragment>
   }`,
 });
