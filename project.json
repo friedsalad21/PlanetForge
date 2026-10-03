@@ -1,0 +1,53 @@
+{
+	"file" : "index.html",
+	"title" : "PlanetForge",
+	"type" : "web",
+	"description" : "Procedurally generated planets, star systems and black holes. A new world every few minutes.",
+	"general" : {
+		"supportsaudioprocessing" : false,
+		"properties" : {
+			"cycle" : {
+				"order" : 0,
+				"text" : "New world every (minutes, 0 = never)",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 60,
+				"step" : 1,
+				"fraction" : false,
+				"value" : 10
+			},
+			"showinfo" : {
+				"order" : 1,
+				"text" : "Show world name",
+				"type" : "bool",
+				"value" : true
+			},
+			"drift" : {
+				"order" : 2,
+				"text" : "Camera drift speed",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 2,
+				"fraction" : true,
+				"precision" : 2,
+				"value" : 0.3
+			},
+			"quality" : {
+				"order" : 3,
+				"text" : "Render quality % (lower = less GPU)",
+				"type" : "slider",
+				"min" : 25,
+				"max" : 100,
+				"step" : 5,
+				"fraction" : false,
+				"value" : 100
+			},
+			"seed" : {
+				"order" : 4,
+				"text" : "Fixed seed (blank = random worlds)",
+				"type" : "textinput",
+				"value" : ""
+			}
+		}
+	}
+}

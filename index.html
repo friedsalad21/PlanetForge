@@ -12,18 +12,18 @@
   #meta{opacity:.7;font-size:14px;margin-top:4px}
   #seed{opacity:.4;font-size:12px;margin-top:2px;word-break:break-all}
   #hint{position:fixed;top:14px;left:0;right:0;text-align:center;opacity:.45;font-size:13px;pointer-events:none}
+  #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1s;pointer-events:none}
 </style>
-<script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-            "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
-</script>
+<!-- three.js r170 is bundled in lib/ so the page also works offline (e.g. as a Wallpaper Engine wallpaper) -->
+<script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
 </head>
 <body>
 <div id="hint">click for a new world · drag to spin · scroll to zoom</div>
 <div id="info"><div id="name"></div><div id="meta"></div><div id="seed"></div></div>
+<div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from './lib/OrbitControls.js';
 
 // 3D simplex noise, Ashima Arts / Stefan Gustavson (MIT)
 const NOISE = `
@@ -833,9 +833,40 @@ fromHash()!==null ? build(fromHash()) : newWorld();
 let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
 renderer.domElement.addEventListener('pointerup',e=>{
-  if (down && Math.hypot(e.clientX-down[0],e.clientY-down[1])<5) newWorld();
+  if (!wallpaper && down && Math.hypot(e.clientX-down[0],e.clientY-down[1])<5) newWorld();
   down=null;
 });
+
+// --- Wallpaper Engine ---
+// Wallpaper Engine calls applyUserProperties on load with the settings from project.json, which switches
+// the page into wallpaper mode: no input (desktop clicks pass through), slow camera drift, worlds cycle on a timer.
+let wallpaper = false, fixedSeed = null, cycleMin = 10, cycleTimer = null, fpsLimit = 0;
+const fadeEl = document.getElementById('fade');
+function fadeTo(fn){ fadeEl.style.opacity = 1; setTimeout(()=>{ fn(); fadeEl.style.opacity = 0; }, 1000); }
+function restartCycle(){
+  clearInterval(cycleTimer);
+  if (cycleMin>0 && fixedSeed===null) cycleTimer = setInterval(()=>fadeTo(newWorld), cycleMin*60000);
+}
+window.wallpaperPropertyListener = {
+  applyUserProperties(p){
+    if (!wallpaper){
+      wallpaper = true;
+      document.getElementById('hint').hidden = true;
+      Object.assign(controls,{enabled:false, autoRotate:true, autoRotateSpeed:.3});
+    }
+    if (p.showinfo) document.getElementById('info').hidden = !p.showinfo.value;
+    if (p.drift) controls.autoRotateSpeed = p.drift.value;
+    if (p.quality){ renderer.setPixelRatio(Math.min(devicePixelRatio,2)*p.quality.value/100); resize(); }
+    if (p.seed){
+      const s = p.seed.value.trim();
+      fixedSeed = /^\d+$/.test(s) ? BigInt(s) & MAX : null;
+      if (fixedSeed!==null){ history.replaceState(null,'','#'+fixedSeed); build(fixedSeed); }
+    }
+    if (p.cycle) cycleMin = p.cycle.value;
+    restartCycle();
+  },
+  applyGeneralProperties(p){ if (p.fps!==undefined) fpsLimit = p.fps; },   // Wallpaper Engine's FPS limit
+};
 addEventListener('keydown',e=>{ if (e.code==='Space'){ e.preventDefault(); newWorld(); } });
 
 function resize(){
@@ -857,7 +888,10 @@ function lightBody(mesh, sunW){
   u.uSunCol.value.copy(sunCol);
   u.uTime.value = clock.elapsedTime;
 }
-renderer.setAnimationLoop(()=>{
+let lastFrame = 0;
+renderer.setAnimationLoop(now=>{
+  if (fpsLimit>0 && now-lastFrame < 1000/fpsLimit-1) return;   // skip frames to respect the FPS limit
+  lastFrame = now;
   const dt = clock.getDelta(), time = clock.elapsedTime;
   planet.rotation.y += dt*planetSpin;
   clouds.rotation.y += dt*(planetSpin+.015);
