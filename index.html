@@ -7,12 +7,12 @@
 <style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif;color:#fff}
   canvas{display:block;touch-action:none;cursor:pointer}
-  #info{position:fixed;left:16px;right:16px;bottom:28px;text-align:center;pointer-events:none;text-shadow:0 2px 8px #000}
-  #name{font-size:clamp(28px,6vw,52px);font-weight:700;letter-spacing:.06em}
-  #meta{opacity:.7;font-size:14px;margin-top:4px}
-  #seed{opacity:.4;font-size:12px;margin-top:2px;word-break:break-all}
-  #hint{position:fixed;top:14px;left:0;right:0;text-align:center;opacity:.45;font-size:13px;pointer-events:none}
-  #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1s;pointer-events:none}
+  #info{position:fixed;left:16px;right:16px;bottom:28px;text-align:center;pointer-events:none;text-shadow:0 2px 8px #000;z-index:1}
+  #name{font-size:calc(clamp(28px,6vw,52px)*var(--ts,1));font-weight:700;letter-spacing:.06em}
+  #meta{opacity:.7;font-size:calc(14px*var(--ts,1));margin-top:4px}
+  #seed{opacity:.4;font-size:calc(12px*var(--ts,1));margin-top:2px;word-break:break-all}
+  #hint{position:fixed;top:14px;left:0;right:0;text-align:center;opacity:.45;font-size:13px;pointer-events:none;z-index:1}
+  #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1s;pointer-events:none;z-index:2}
 </style>
 <!-- three.js r170 is bundled in lib/ so the page also works offline (e.g. as a Wallpaper Engine wallpaper) -->
 <script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
@@ -404,7 +404,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45,1,.05,300);
 camera.position.set(0,1.1,3.4);   // a little above the equator so rings aren't edge-on
 const controls = new OrbitControls(camera, renderer.domElement);
-Object.assign(controls,{enablePan:false,enableDamping:true,minDistance:1.15,maxDistance:20});
+Object.assign(controls,{enablePan:false,enableDamping:true,minDistance:1.15,maxDistance:40});
 
 const SUN = new THREE.Vector3(1,.3,.3).normalize();
 const sunCol = new THREE.Color();
@@ -452,7 +452,9 @@ const ringPts = (() => {
 tilt.add(planet, clouds, atmo, rings, ringPts);
 const moonGeo = new THREE.SphereGeometry(1,128,128);
 let moons = [];   // orbiting bodies: {pivot, mesh, speed, kindName}
-let mode = 'planet', autoDist = null, planetSpin = .05;
+let mode = 'planet', autoDist = null, fitDist = 3.6, planetSpin = .05;
+// settings the wallpaper panel can change (defaults = normal website behaviour)
+const opts = { zoom:1, nebula:1, timeScale:1, parallax:0, allow:{planet:true, star:true, blackhole:true} };
 
 // stars: up to two, each with a corona sprite, orbiting their common centre
 function makeStar(){
@@ -749,16 +751,17 @@ function build(seed){
   tilt.rotation.z = r()*.45;
   nebulaMat.uniforms.uSeed.value.set(r()*50,r()*50,r()*50);
   nebulaMat.uniforms.uA.value.copy(c(r(),.7,.5)); nebulaMat.uniforms.uB.value.copy(c(r(),.7,.5));
-  nebulaMat.uniforms.uDensity.value = .3+r()*1.2;
+  nebulaMat.userData.density = .3+r()*1.2;
+  nebulaMat.uniforms.uDensity.value = nebulaMat.userData.density*opts.nebula;
   // auto-fit the system, unless the user has zoomed away from the last auto distance
-  if (autoDist===null || Math.abs(camera.position.length()-autoDist)<.05){
-    autoDist = Math.min(18, Math.max(3.6, orbit*1.25+1));
-    camera.position.setLength(autoDist);
-  }
+  fitDist = Math.min(18, Math.max(3.6, orbit*1.25+1));
+  if (autoDist===null || Math.abs(camera.position.length()-autoDist)<.05) applyZoom();
   document.getElementById('name').textContent = makeName(r, mode==='planet');
   document.getElementById('meta').textContent = bits.join(' · ');
   document.getElementById('seed').textContent = 'seed '+seed;
 }
+
+function applyZoom(){ autoDist = fitDist*opts.zoom; camera.position.setLength(autoDist); }
 
 function buildPlanet(r, pick){
   const S = pickStar(r, SUN_POOL);
@@ -821,8 +824,15 @@ function buildPlanet(r, pick){
 // seeds are unsigned 64-bit integers written in the URL hash
 const MAX = (1n<<64n)-1n;
 function fromHash(){ const s = location.hash.slice(1); return /^\d+$/.test(s) ? BigInt(s) & MAX : null; }
+// the first random number of a seed decides planet / star system / black hole (see build)
+function modeOf(seed){ const x = rngFor(seed)(); return x<.7 ? 'planet' : x<.9 ? 'star' : 'blackhole'; }
 function newWorld(){
-  const seed = crypto.getRandomValues(new BigUint64Array(1))[0];
+  const any = Object.values(opts.allow).some(Boolean);
+  let seed;
+  for (let i=0;i<200;i++){   // reroll until it's a kind the wallpaper settings allow
+    seed = crypto.getRandomValues(new BigUint64Array(1))[0];
+    if (!any || opts.allow[modeOf(seed)]) break;
+  }
   history.replaceState(null,'','#'+seed);
   build(seed);
 }
@@ -840,9 +850,21 @@ renderer.domElement.addEventListener('pointerup',e=>{
 // --- Wallpaper Engine ---
 // Wallpaper Engine calls applyUserProperties on load with the settings from project.json, which switches
 // the page into wallpaper mode: no input (desktop clicks pass through), slow camera drift, worlds cycle on a timer.
-let wallpaper = false, fixedSeed = null, cycleMin = 10, cycleTimer = null, fpsLimit = 0;
+let wallpaper = false, fixedSeed = null, cycleMin = 10, cycleTimer = null, fpsLimit = 0, fadeSec = 1, shiftX = 0;
 const fadeEl = document.getElementById('fade');
-function fadeTo(fn){ fadeEl.style.opacity = 1; setTimeout(()=>{ fn(); fadeEl.style.opacity = 0; }, 1000); }
+function fadeTo(fn){
+  if (fadeSec<=0) return fn();
+  fadeEl.style.opacity = 1; setTimeout(()=>{ fn(); fadeEl.style.opacity = 0; }, fadeSec*1000);
+}
+function setElevation(deg){   // camera height above the equator, keeping distance and direction
+  const s = new THREE.Spherical().setFromVector3(camera.position);
+  s.phi = THREE.MathUtils.degToRad(90-deg);
+  camera.position.setFromSpherical(s);
+}
+const cssFilter = {brightness:100, saturate:100};
+function applyFilter(){ renderer.domElement.style.filter = `brightness(${cssFilter.brightness}%) saturate(${cssFilter.saturate}%)`; }
+const mouse = new THREE.Vector2(), mouseSmooth = new THREE.Vector2(), parallax = new THREE.Vector3();
+addEventListener('mousemove', e=>mouse.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight*2-1)));
 function restartCycle(){
   clearInterval(cycleTimer);
   if (cycleMin>0 && fixedSeed===null) cycleTimer = setInterval(()=>fadeTo(newWorld), cycleMin*60000);
@@ -863,6 +885,23 @@ window.wallpaperPropertyListener = {
       if (fixedSeed!==null){ history.replaceState(null,'','#'+fixedSeed); build(fixedSeed); }
     }
     if (p.cycle) cycleMin = p.cycle.value;
+    for (const [key,kind] of [['showplanets','planet'],['showstars','star'],['showblackholes','blackhole']])
+      if (p[key]) opts.allow[kind] = p[key].value;
+    if (p.showplanets || p.showstars || p.showblackholes){   // current world no longer allowed? swap it now
+      if (fixedSeed===null && Object.values(opts.allow).some(Boolean) && !opts.allow[mode]) fadeTo(newWorld);
+    }
+    if (p.zoom){ opts.zoom = p.zoom.value/100; applyZoom(); }
+    if (p.angle) setElevation(p.angle.value);
+    if (p.shift){ shiftX = p.shift.value/100; resize(); }
+    if (p.speed) opts.timeScale = p.speed.value;
+    if (p.parallax) opts.parallax = p.parallax.value;
+    if (p.brightness){ cssFilter.brightness = p.brightness.value; applyFilter(); }
+    if (p.saturation){ cssFilter.saturate = p.saturation.value; applyFilter(); }
+    if (p.nebula){ opts.nebula = p.nebula.value/100; nebulaMat.uniforms.uDensity.value = (nebulaMat.userData.density??1)*opts.nebula; }
+    if (p.showdetails) document.getElementById('meta').hidden = !p.showdetails.value;
+    if (p.showseed) document.getElementById('seed').hidden = !p.showseed.value;
+    if (p.textsize) document.documentElement.style.setProperty('--ts', p.textsize.value/100);
+    if (p.fade){ fadeSec = p.fade.value; fadeEl.style.transitionDuration = fadeSec+'s'; }
     restartCycle();
   },
   applyGeneralProperties(p){ if (p.fps!==undefined) fpsLimit = p.fps; },   // Wallpaper Engine's FPS limit
@@ -871,7 +910,11 @@ addEventListener('keydown',e=>{ if (e.code==='Space'){ e.preventDefault(); newWo
 
 function resize(){
   renderer.setSize(innerWidth,innerHeight);
-  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  camera.aspect = innerWidth/innerHeight;
+  // horizontal shift (wallpaper setting): slide the framing so the world sits left/right of centre
+  if (shiftX) camera.setViewOffset(innerWidth, innerHeight, -shiftX*innerWidth, 0, innerWidth, innerHeight);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
   // pixels per world unit at distance 1, for sizing ring particles
   ringPtsMat.uniforms.uScale.value = renderer.getPixelRatio()*innerHeight/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
 }
@@ -886,20 +929,31 @@ function lightBody(mesh, sunW){
   u.uSun.value.copy(toLocal(mesh,sunW));
   u.uCam.value.copy(mesh.worldToLocal(camera.position.clone()));
   u.uSunCol.value.copy(sunCol);
-  u.uTime.value = clock.elapsedTime;
+  u.uTime.value = simTime;
 }
-let lastFrame = 0;
+let lastFrame = 0, simTime = 0;
 renderer.setAnimationLoop(now=>{
   if (fpsLimit>0 && now-lastFrame < 1000/fpsLimit-1) return;   // skip frames to respect the FPS limit
   lastFrame = now;
-  const dt = clock.getDelta(), time = clock.elapsedTime;
+  const realDt = clock.getDelta(), dt = realDt*opts.timeScale;
+  const time = simTime += dt;
   planet.rotation.y += dt*planetSpin;
   clouds.rotation.y += dt*(planetSpin+.015);
   binary.rotation.y += dt*(binary.userData.spin||0);
   belt.rotation.y += dt*.02;
   for (const s of stars) s.rotation.y += dt*.03;
   for (const m of moons){ m.pivot.rotation.y += dt*m.speed; m.mesh.rotation.y += dt*.1; }
+  // mouse parallax: nudge the camera sideways/up a little, removed again before the controls update
+  camera.position.sub(parallax);
   controls.update();
+  mouseSmooth.lerp(mouse, Math.min(1, realDt*3));
+  if (opts.parallax>0){
+    camera.updateMatrixWorld();
+    const d = camera.position.length()*.08*opts.parallax;
+    parallax.setFromMatrixColumn(camera.matrixWorld,0).multiplyScalar(mouseSmooth.x*d)
+      .add(tmp.setFromMatrixColumn(camera.matrixWorld,1).multiplyScalar(mouseSmooth.y*d));
+    camera.position.add(parallax); camera.lookAt(controls.target);
+  } else parallax.set(0,0,0);
   tilt.updateMatrixWorld();
   halo.quaternion.copy(camera.quaternion);
   lightBody(planet, SUN);
