@@ -89,6 +89,29 @@ float craters(vec3 p){
 }
 `;
 
+// ring density as a function of t (0 = inner edge, 1 = outer edge); shared by the ring itself,
+// the shadow it casts on the planet and clouds, and the ring particles, so their gaps all line up
+const RINGFN = `
+float h1(float x){return fract(sin(x*127.1)*43758.5);}
+float n1(float x){float i=floor(x);return mix(h1(i),h1(i+1.),smoothstep(0.,1.,fract(x)));}
+float ringBands(float t, vec3 K){ return n1(t*K.x)*.5+n1(t*K.y+9.)*.3+n1(t*K.z+3.)*.2; }
+float ringAlpha(float t, float b, vec2 gaps, float dust){
+  float gap=smoothstep(.0,.03,abs(t-gaps.x))*smoothstep(.0,.015,abs(t-gaps.y));   // Cassini-style gaps
+  return clamp(b*1.5-.1,0.,1.)*gap*smoothstep(0.,.04,t)*(1.-smoothstep(.9,1.,t))*.9*dust;
+}
+// fraction of sunlight blocked by the ring for point p (planet-local; ring lies in the y=0 plane)
+uniform float uRinged,uRIn,uROut,uRDust; uniform vec3 uRK; uniform vec2 uRGaps;
+float ringShadow(vec3 p, vec3 sun){
+  if(uRinged<.5 || abs(sun.y)<.001) return 0.;
+  float d=-p.y/sun.y;
+  if(d<=0.) return 0.;
+  float rt=(length((p+sun*d).xz)-uRIn)/(uROut-uRIn);
+  return ringAlpha(rt,ringBands(rt,uRK),uRGaps,uRDust);
+}
+`;
+const ringUniforms = () => ({ uRinged:{value:0}, uRIn:{value:1.4}, uROut:{value:2.2}, uRDust:{value:1},
+  uRK:{value:new THREE.Vector3()}, uRGaps:{value:new THREE.Vector2()} });
+
 const VERT = `varying vec3 vPos; void main(){ vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
 const col3 = () => ({value:new THREE.Color()});
 const num = v => ({value:v});
@@ -101,10 +124,10 @@ const bodyMat = new THREE.ShaderMaterial({
     uWarp:num(0), uRidge:num(0), uTerrace:num(0), uLocked:num(0), uGlow:num(0), uMoist:num(0),
     uTurb:num(2), uStorms:num(1), uSharp:num(0),
     uDeep:col3(), uShallow:col3(), uSand:col3(), uLow:col3(), uLow2:col3(), uHigh:col3(), uRock:col3(), uSnow:col3(), uAtmo:col3(),
-    uSun:{value:new THREE.Vector3()}, uSunCol:col3(), uCam:{value:new THREE.Vector3()},
+    uSun:{value:new THREE.Vector3()}, uSunCol:col3(), uCam:{value:new THREE.Vector3()}, ...ringUniforms(),
   },
   vertexShader: VERT,
-  fragmentShader: NOISE + `
+  fragmentShader: NOISE + RINGFN + `
   uniform vec3 uSeed,uDeep,uShallow,uSand,uLow,uLow2,uHigh,uRock,uSnow,uAtmo,uSun,uSunCol,uCam;
   uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater,uTime,uWarp,uRidge,uTerrace,uLocked,uGlow,uMoist,uTurb,uStorms,uSharp;
   varying vec3 vPos;
@@ -191,9 +214,10 @@ const bodyMat = new THREE.ShaderMaterial({
     }
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
-    vec3 c=col*(.01+smoothstep(-.15,1.,ndl)*uSunCol);   // soft terminator
+    float lit=1.-ringShadow(p,uSun)*.85;                 // banded shadow cast by the rings
+    vec3 c=col*(.01+smoothstep(-.15,1.,ndl)*uSunCol*lit);   // soft terminator
     // water: tight sun glint + broad sheen, and sky reflection that grows at grazing angles (Fresnel)
-    float nh=max(dot(n,normalize(uSun+v)),0.), day=smoothstep(-.1,.25,dot(p,uSun));
+    float nh=max(dot(n,normalize(uSun+v)),0.), day=smoothstep(-.1,.25,dot(p,uSun))*lit;
     float fres=.02+.98*pow(1.-max(dot(n,v),0.),5.);
     float sky=pow(max(dot(reflect(-v,n),uSun),0.),3.);   // wave facets catching the bright sky near the sun
     c+=water*(1.-uLava)*day*(uSunCol*(pow(nh,300.)*3.+pow(nh,25.)*.12)+uAtmo*(fres*.5+sky*(.15+fres)*.5));
@@ -211,9 +235,9 @@ const bodyMat = new THREE.ShaderMaterial({
 const cloudMat = new THREE.ShaderMaterial({
   transparent:true, depthWrite:false,
   uniforms:{ uSeed:{value:new THREE.Vector3()}, uCloud:num(.2), uCol:col3(), uSunCol:col3(),
-             uSun:{value:new THREE.Vector3()}, uTime:num(0), uStretch:num(1.75), uSwirl:num(0) },
+             uSun:{value:new THREE.Vector3()}, uTime:num(0), uStretch:num(1.75), uSwirl:num(0), ...ringUniforms() },
   vertexShader: VERT,
-  fragmentShader: NOISE + `
+  fragmentShader: NOISE + RINGFN + `
   uniform vec3 uSeed,uCol,uSun,uSunCol; uniform float uCloud,uTime,uStretch,uSwirl;
   varying vec3 vPos;
   void main(){
@@ -225,7 +249,8 @@ const cloudMat = new THREE.ShaderMaterial({
     float a=smoothstep(uCloud,uCloud+.2,c)*.95;
     float base=max(uCloud,-.5);
     vec3 shade=uCol*(.65+.35*smoothstep(base,base+.7,c));   // thicker cloud is brighter
-    gl_FragColor=vec4(shade*(.006+smoothstep(-.15,1.,dot(p,uSun))*uSunCol),a);
+    float lit=1.-ringShadow(p,uSun)*.85;
+    gl_FragColor=vec4(shade*(.006+smoothstep(-.15,1.,dot(p,uSun))*uSunCol*lit),a);
     #include <colorspace_fragment>
   }`,
 });
@@ -250,9 +275,7 @@ const ringMat = new THREE.ShaderMaterial({
   vertexShader:`varying vec3 vP,vW,vNw; void main(){ vP=position; vW=(modelMatrix*vec4(position,1.)).xyz;
     vNw=normalize(mat3(modelMatrix)*vec3(0,0,1));
     gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader:`uniform vec3 uA,uB,uSunW,uSunCol,uK; uniform vec2 uGaps; uniform float uIn,uOut,uDust; varying vec3 vP,vW,vNw;
-  float h1(float x){return fract(sin(x*127.1)*43758.5);}
-  float n1(float x){float i=floor(x);return mix(h1(i),h1(i+1.),smoothstep(0.,1.,fract(x)));}
+  fragmentShader: RINGFN + `uniform vec3 uA,uB,uSunW,uSunCol,uK; uniform vec2 uGaps; uniform float uIn,uOut,uDust; varying vec3 vP,vW,vNw;
   // ringlets all the way down: octaves of 1D noise until they'd be thinner than a pixel
   float ringlets(float x, float px){
     float s=0., a=.5, norm=0.;
@@ -265,19 +288,46 @@ const ringMat = new THREE.ShaderMaterial({
   }
   void main(){
     float t=(length(vP.xy)-uIn)/(uOut-uIn), ft=fwidth(t);
-    float b=n1(t*uK.x)*.5+n1(t*uK.y+9.)*.3+n1(t*uK.z+3.)*.2;   // main band structure
+    float b=ringBands(t,uK);                                    // main band structure
     b*=1.+(ringlets(t*uK.x*5.,ft*uK.x*5.)-.5)*.7;              // fine ringlets, sharper as you zoom in
     // up close: grainy ice-particle sparkle in the ring plane
     float k=600., grain=fract(sin(dot(floor(vP.xy*k),vec2(12.9898,78.233)))*43758.5);
     b*=1.+(grain-.5)*.5*(1.-smoothstep(.3,.8,length(fwidth(vP.xy))*k));
-    float gap=smoothstep(.0,.03,abs(t-uGaps.x))*smoothstep(.0,.015,abs(t-uGaps.y));   // Cassini-style gaps
-    float a=clamp(b*1.5-.1,0.,1.)*gap*smoothstep(0.,.04,t)*(1.-smoothstep(.9,1.,t))*.9*uDust;   // sparse bands go see-through
+    float a=ringAlpha(t,b,uGaps,uDust);                         // sparse bands go see-through
     float shadow=(dot(vW,uSunW)<0. && length(cross(vW,uSunW))<1.)?.08:1.;   // planet's shadow on the ring
     // seen from the sunlit face the ring reflects; from the dark face only thin parts glow with light passing through
     float sideS=dot(vNw,uSunW), sideV=dot(vNw,cameraPosition-vW);
     float light=sideS*sideV>0. ? .75+.5*abs(sideS) : .3+.6*(1.-a);
     vec3 col=mix(uA,uB,b)*mix(.8,1.2,n1(t*uK.z*2.+4.));        // slight colour drift across the rings
     gl_FragColor=vec4(col*uSunCol*light*(.05+.95*shadow),a);
+    #include <colorspace_fragment>
+  }`,
+});
+
+// ring particles: chunks of rock/ice spread through the same bands with a little thickness.
+// position holds (u across the ring, angle, height); they fade in as the camera gets close.
+const ringPtsMat = new THREE.ShaderMaterial({
+  transparent:true, depthWrite:false,
+  uniforms:{ uIn:num(1.4), uOut:num(2.2), uK:{value:new THREE.Vector3()}, uGaps:{value:new THREE.Vector2()}, uDust:num(1),
+             uA:col3(), uB:col3(), uSunW:{value:new THREE.Vector3()}, uSunCol:col3(), uScale:num(1), uThick:num(.02) },
+  vertexShader: RINGFN + `uniform float uIn,uOut,uDust,uScale,uThick; uniform vec3 uK,uA,uB,uSunW,uSunCol; uniform vec2 uGaps;
+  attribute float aRand; varying float vA; varying vec3 vCol;
+  void main(){
+    float r=uIn+position.x*(uOut-uIn);
+    vec4 wp=modelMatrix*vec4(cos(position.y)*r, position.z*uThick*(.3+aRand), sin(position.y)*r, 1.);
+    vA=ringAlpha(position.x,ringBands(position.x,uK),uGaps,uDust);
+    float shadow=(dot(wp.xyz,uSunW)<0. && length(cross(wp.xyz,uSunW))<1.)?.08:1.;
+    vCol=mix(uA,uB,aRand)*uSunCol*(.6+.8*aRand)*(.1+.9*shadow);
+    vec4 mv=viewMatrix*wp;
+    float d=-mv.z;
+    vA*=1.-smoothstep(1.5,5.,d);
+    gl_PointSize=clamp(uScale*.003*(.5+aRand)/d,1.,8.);   // ~0.003-unit chunks in perspective
+    gl_Position=projectionMatrix*mv;
+  }`,
+  fragmentShader:`varying float vA; varying vec3 vCol;
+  void main(){
+    float m=1.-smoothstep(.2,.5,length(gl_PointCoord-.5));
+    gl_FragColor=vec4(vCol,vA*m);
     #include <colorspace_fragment>
   }`,
 });
@@ -346,23 +396,6 @@ const haloMat = new THREE.ShaderMaterial({
   }`,
 });
 
-// pulsar beams / black-hole jets: open cones, brightest at the source, fading out along the beam
-// and towards their silhouette edges so they read as soft light rather than solid cones
-const beamMat = new THREE.ShaderMaterial({
-  side:THREE.DoubleSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-  uniforms:{ uCol:col3() },
-  vertexShader:`varying vec2 vUv; varying vec3 vN,vV;
-    void main(){ vUv=uv; vec4 mv=modelViewMatrix*vec4(position,1.); vN=normalMatrix*normal; vV=-mv.xyz;
-      gl_Position=projectionMatrix*mv; }`,
-  fragmentShader:`uniform vec3 uCol; varying vec2 vUv; varying vec3 vN,vV;
-  void main(){
-    float core=pow(abs(dot(normalize(vN),normalize(vV))),2.);   // soft edges
-    float along=pow(vUv.y,3.);                                   // uv.y = 1 at the apex (the star)
-    gl_FragColor=vec4(uCol*core*along*.9,1.);
-    #include <colorspace_fragment>
-  }`,
-});
-
 // --- scene ---
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -406,10 +439,20 @@ const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.02,96,96), cloudMat);
 const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12,96,96), atmoMat);
 const rings = new THREE.Mesh(new THREE.RingGeometry(1,2,256,1), ringMat);
 rings.rotation.x = -Math.PI/2;
-tilt.add(planet, clouds, atmo, rings);
+const ringPts = (() => {
+  const N = 60000, pos = new Float32Array(N*3), rnd = new Float32Array(N);
+  for (let i=0;i<N;i++){ pos.set([Math.random(), Math.random()*Math.PI*2, Math.random()*2-1], i*3); rnd[i] = Math.random(); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('aRand', new THREE.BufferAttribute(rnd,1));
+  const pts = new THREE.Points(g, ringPtsMat);
+  pts.frustumCulled = false;   // real positions are computed in the shader
+  return pts;
+})();
+tilt.add(planet, clouds, atmo, rings, ringPts);
 const moonGeo = new THREE.SphereGeometry(1,128,128);
 let moons = [];   // orbiting bodies: {pivot, mesh, speed, kindName}
-let mode = 'planet', autoDist = null, planetSpin = .05, beamSpin = 0;
+let mode = 'planet', autoDist = null, planetSpin = .05;
 
 // stars: up to two, each with a corona sprite, orbiting their common centre
 function makeStar(){
@@ -421,11 +464,6 @@ function makeStar(){
 const binary = new THREE.Group();
 const stars = [makeStar(), makeStar()];
 binary.add(...stars);
-// pulsar beams (spin around a tilted axis) and black-hole jets (along the axis)
-const beams = new THREE.Group(), beamTilt = new THREE.Group();
-{ const geo = new THREE.ConeGeometry(.35,5,32,1,true); geo.rotateX(Math.PI); geo.translate(0,2.5,0);
-  const up = new THREE.Mesh(geo, beamMat), down = up.clone(); down.rotation.x = Math.PI;
-  beamTilt.add(up, down); beams.add(beamTilt); }
 const horizon = new THREE.Mesh(moonGeo, new THREE.MeshBasicMaterial({color:0}));
 horizon.scale.setScalar(.5);
 const disk = new THREE.Mesh(new THREE.RingGeometry(.75,2.6,256,1), diskMat);
@@ -434,7 +472,7 @@ const halo = new THREE.Mesh(new THREE.PlaneGeometry(8,8), haloMat);
 halo.scale.setScalar(.56);
 const belt = new THREE.Points(new THREE.BufferGeometry(),
   new THREE.PointsMaterial({size:.022,sizeAttenuation:true,transparent:true,depthWrite:false}));
-tilt.add(binary, beams, horizon, disk, belt);
+tilt.add(binary, horizon, disk, belt);
 scene.add(halo);
 
 // --- generation ---
@@ -642,12 +680,11 @@ function build(seed){
   const roll = r();
   mode = roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole';
   controls.minDistance = 1.15;
-  for (const o of [planet, clouds, atmo, rings]) o.visible = mode==='planet';
+  for (const o of [planet, clouds, atmo, rings, ringPts]) o.visible = mode==='planet';
   binary.visible = mode==='star';
   for (const o of [horizon, disk, halo]) o.visible = mode==='blackhole';
   sunSprite.visible = mode==='planet';
-  beams.visible = belt.visible = false;
-  beamSpin = 0;
+  belt.visible = false;
   for (const m of moons){ tilt.remove(m.pivot); m.mesh.material.dispose(); }
   moons = [];
 
@@ -677,9 +714,8 @@ function build(seed){
       binary.userData.spin = .4/sep;
     } else { stars[0].position.x = 0; binary.userData.spin = 0; }
     controls.minDistance = reach+.15;
-    if (A.name==='neutron star'){          // pulsar: two sweeping beams
-      beams.visible = true; beams.scale.set(.6,1.6,.6); beamTilt.rotation.z = .3+r()*.6; beamSpin = 3+r()*6;
-      beamMat.uniforms.uCol.value.copy(c(.6,.8,.85));
+    if (A.name==='neutron star'){
+      r(); r();   // (used to roll beams; kept so seeds stay the same)
       stars[0].material.uniforms.uCool.value.copy(A.col).multiplyScalar(.8);   // white-hot, no sunspots
       const glow = stars[0].children[0];          // soft blue-white haze instead of a hard corona
       glow.material.map = SOFT_TEX; glow.scale.setScalar(40); glow.material.color.copy(c(.6,.8,.5));
@@ -690,7 +726,7 @@ function build(seed){
       if (i===beltAfter){ const w = .25+r()*.3; orbit += .4+w; makeBelt(r, orbit, w); belt.visible = true; orbit += w; }
       if (i<n) orbit = addOrbiters(r, 1, orbit, KIND_POOL, [.1,.28], [.5,.6]);
     }
-    const name = (isBinary ? 'Binary: '+A.name+' + '+B.name : A.name==='neutron star' ? 'Pulsar' : A.name);
+    const name = (isBinary ? 'Binary: '+A.name+' + '+B.name : A.name);
     bits = [name[0].toUpperCase()+name.slice(1), `${n} planet${n>1?'s':''}: `+moons.map(m=>m.kindName).join(', ')];
     if (belt.visible) bits.push('asteroid belt');
   } else if (mode==='blackhole'){
@@ -705,11 +741,7 @@ function build(seed){
     haloMat.uniforms.uCool.value.copy(diskMat.uniforms.uCool.value);
     orbit = outer;
     bits = ['Black hole', `${(3+r()*60).toFixed(1)} solar masses`];
-    if (r()<.4){                          // relativistic jets along the spin axis
-      beams.visible = true; beams.scale.set(.25,1.4,.25); beamTilt.rotation.z = 0;
-      beamMat.uniforms.uCol.value.copy(c(.6,.7,.85));
-      bits.push('relativistic jets');
-    }
+    r();   // (used to roll jets; kept so seeds stay the same)
   } else {
     ({orbit, bits} = buildPlanet(r, pick));
   }
@@ -750,11 +782,12 @@ function buildPlanet(r, pick){
   atmo.visible = k.atmo !== BLACK;
 
   const ringed = r() < k.rings;
-  rings.visible = ringed;
+  rings.visible = ringPts.visible = ringed;
+  planetMat.uniforms.uRinged.value = cloudMat.uniforms.uRinged.value = ringed ? 1 : 0;
   if (ringed){
     const inner = 1.25+r()*.35, outer = inner+.4+r()*1.1;
     rings.geometry.dispose(); rings.geometry = new THREE.RingGeometry(inner,outer,256,1);
-    const u = ringMat.uniforms;
+    const u = ringMat.uniforms, pu = ringPtsMat.uniforms;
     u.uIn.value = inner; u.uOut.value = outer;
     u.uK.value.set(20+r()*80, 7+r()*30, 3+r()*10);
     u.uGaps.value.set(.15+r()*.6, r()<.5 ? r() : -1);
@@ -762,7 +795,15 @@ function buildPlanet(r, pick){
     const hue = r(), tinted = r()<.35;
     u.uA.value.copy(k.gas && !tinted ? k.snow : c(hue,tinted?.35:.15,.72));
     u.uB.value.copy(k.gas && !tinted ? k.rock : c(hue+.05,tinted?.4:.2,.45));
-    rings.rotation.z = (r()-.5)*.1;
+    r();   // (used to be a spin of the ring in its own plane; kept so seeds stay the same)
+    // particles and the shadows on planet + clouds share the ring's bands
+    for (const key of ['uIn','uOut','uDust']) pu[key].value = u[key].value;
+    for (const key of ['uK','uGaps','uA','uB']) pu[key].value.copy(u[key].value);
+    for (const m of [planetMat, cloudMat]){
+      const s = m.uniforms;
+      s.uRIn.value = inner; s.uROut.value = outer; s.uRDust.value = u.uDust.value;
+      s.uRK.value.copy(u.uK.value); s.uRGaps.value.copy(u.uGaps.value);
+    }
   }
 
   const nMoons = Math.max(r()<.15 ? 0 : 1, Math.floor(r()*(k.moons+1)));   // most worlds get at least one
@@ -800,6 +841,8 @@ addEventListener('keydown',e=>{ if (e.code==='Space'){ e.preventDefault(); newWo
 function resize(){
   renderer.setSize(innerWidth,innerHeight);
   camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  // pixels per world unit at distance 1, for sizing ring particles
+  ringPtsMat.uniforms.uScale.value = renderer.getPixelRatio()*innerHeight/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
 }
 addEventListener('resize',resize); resize();
 
@@ -819,7 +862,6 @@ renderer.setAnimationLoop(()=>{
   planet.rotation.y += dt*planetSpin;
   clouds.rotation.y += dt*(planetSpin+.015);
   binary.rotation.y += dt*(binary.userData.spin||0);
-  beams.rotation.y += dt*beamSpin;
   belt.rotation.y += dt*.02;
   for (const s of stars) s.rotation.y += dt*.03;
   for (const m of moons){ m.pivot.rotation.y += dt*m.speed; m.mesh.rotation.y += dt*.1; }
@@ -839,6 +881,7 @@ renderer.setAnimationLoop(()=>{
   cloudMat.uniforms.uTime.value = time;
   atmoMat.uniforms.uSunW.value.copy(SUN); atmoMat.uniforms.uSunCol.value.copy(sunCol);
   ringMat.uniforms.uSunW.value.copy(SUN); ringMat.uniforms.uSunCol.value.copy(sunCol);
+  ringPtsMat.uniforms.uSunW.value.copy(SUN); ringPtsMat.uniforms.uSunCol.value.copy(sunCol);
   renderer.render(scene,camera);
 });
 </script>
