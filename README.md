@@ -10,6 +10,8 @@ Procedural space in the browser, built with three.js. Every world comes from a 6
 - **Black holes:** swirling accretion disks of different colours.
 - **Detail at any zoom:** the surfaces are drawn from layered noise that keeps adding finer detail as you zoom in.
 
+What's next: see the **[roadmap](ROADMAP.md)** (free movement, real orbits, a gravity simulation toggle, galaxies and a whole universe, landing on planets and more).
+
 ## Controls
 
 | | |
