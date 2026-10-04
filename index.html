@@ -11,15 +11,37 @@
   #name{font-size:calc(clamp(28px,6vw,52px)*var(--ts,1));font-weight:700;letter-spacing:.06em}
   #meta{opacity:.7;font-size:calc(14px*var(--ts,1));margin-top:4px}
   #seed{opacity:.4;font-size:calc(12px*var(--ts,1));margin-top:2px;word-break:break-all}
-  #hint{position:fixed;top:14px;left:0;right:0;text-align:center;opacity:.45;font-size:13px;pointer-events:none;z-index:1}
+  #hint{position:fixed;top:16px;left:14px;opacity:.45;font-size:13px;pointer-events:none;z-index:1}
   #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1s;pointer-events:none;z-index:2}
+  #bar{position:fixed;top:10px;right:10px;display:flex;gap:6px;z-index:1;opacity:.55;transition:opacity .2s}
+  #bar:hover,#bar:focus-within{opacity:1}
+  #bar button{font:13px system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+    border-radius:6px;padding:6px 10px;cursor:pointer}
+  #bar button:hover{background:rgba(255,255,255,.2)}
+  #bar button:disabled{opacity:.35;cursor:default}
+  #toast,#loading{position:fixed;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;font-size:14px;
+    background:rgba(0,0,0,.6);padding:8px 14px;border-radius:6px}
+  #toast{top:56px;opacity:0;transition:opacity .3s}
+  #loading{top:50%}
+  .clean #info,.clean #hint{display:none}
+  #bar button{white-space:nowrap}
+  @media (max-width:640px){ #hint{display:none} #bar{left:10px;justify-content:center} #bar button{padding:6px 7px;font-size:12px} }
 </style>
 <!-- three.js r170 is bundled in lib/ so the page also works offline (e.g. as a Wallpaper Engine wallpaper) -->
 <script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
 </head>
 <body>
 <div id="hint">click for a new world · drag to spin · scroll to zoom</div>
+<div id="bar">
+  <button id="prev" title="Previous world (←)">◀ Back</button>
+  <button id="next" title="New world (Space or →)">New</button>
+  <button id="copy" title="Copy a link to this world (C)">Copy link</button>
+  <button id="shot" title="Save a screenshot (S)">Screenshot</button>
+  <button id="hide" title="Hide or show the text (H)">Hide text</button>
+</div>
 <div id="info"><div id="name"></div><div id="meta"></div><div id="seed"></div></div>
+<div id="toast" role="status"></div>
+<div id="loading">Generating…</div>
 <div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
@@ -112,6 +134,17 @@ float ringShadow(vec3 p, vec3 sun){
 const ringUniforms = () => ({ uRinged:{value:0}, uRIn:{value:1.4}, uROut:{value:2.2}, uRDust:{value:1},
   uRK:{value:new THREE.Vector3()}, uRGaps:{value:new THREE.Vector2()} });
 
+// cloud cover, shared by the cloud layer and the shadows it casts on the ground (needs uTime declared first)
+const CLOUDFN = `
+uniform float uCloud,uStretch,uSwirl;
+float cloudDensity(vec3 p, vec3 seed){
+  vec3 q=p*vec3(2.,2.*uStretch,2.)+seed.zxy+uTime*.015;
+  if(uSwirl>0.) q+=uSwirl*vec3(snoise(q*.6+2.),snoise(q*.6+5.),snoise(q*.6+9.));   // storm swirls
+  return fbm(q,2.*uStretch);
+}
+`;
+const cloudUniforms = () => ({ uCloud:{value:.2}, uStretch:{value:1.75}, uSwirl:{value:0} });
+
 const VERT = `varying vec3 vPos; void main(){ vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
 const col3 = () => ({value:new THREE.Color()});
 const num = v => ({value:v});
@@ -125,12 +158,14 @@ const bodyMat = new THREE.ShaderMaterial({
     uTurb:num(2), uStorms:num(1), uSharp:num(0),
     uDeep:col3(), uShallow:col3(), uSand:col3(), uLow:col3(), uLow2:col3(), uHigh:col3(), uRock:col3(), uSnow:col3(), uAtmo:col3(),
     uSun:{value:new THREE.Vector3()}, uSunCol:col3(), uCam:{value:new THREE.Vector3()}, ...ringUniforms(),
+    ...cloudUniforms(), uCSeed:{value:new THREE.Vector3()}, uCloudShadow:num(0), uCloudRot:num(0),
   },
   vertexShader: VERT,
   fragmentShader: NOISE + RINGFN + `
-  uniform vec3 uSeed,uDeep,uShallow,uSand,uLow,uLow2,uHigh,uRock,uSnow,uAtmo,uSun,uSunCol,uCam;
+  uniform vec3 uSeed,uDeep,uShallow,uSand,uLow,uLow2,uHigh,uRock,uSnow,uAtmo,uSun,uSunCol,uCam,uCSeed;
   uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater,uTime,uWarp,uRidge,uTerrace,uLocked,uGlow,uMoist,uTurb,uStorms,uSharp;
-  varying vec3 vPos;
+  uniform float uCloudShadow,uCloudRot;
+  varying vec3 vPos;` + CLOUDFN + `
   float height(vec3 p){
     vec3 q=p*uFreq+uSeed;
     // swirled continents: broad, gentle warp, so features bend without being smeared into streaks
@@ -215,6 +250,14 @@ const bodyMat = new THREE.ShaderMaterial({
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
     float lit=1.-ringShadow(p,uSun)*.85;                 // banded shadow cast by the rings
+    if(uCloudShadow>0.){                                 // soft shadows of the clouds overhead
+      float cr=cos(uCloudRot), sr=sin(uCloudRot);        // planet-local -> cloud-layer-local (they spin at different rates)
+      vec3 pc=vec3(cr*p.x+sr*p.z,p.y,-sr*p.x+cr*p.z), sc=vec3(cr*uSun.x+sr*uSun.z,uSun.y,-sr*uSun.x+cr*uSun.z);
+      float keep=gPx; gPx*=6.;                           // fewer octaves: shadows are blurry anyway
+      float cd=cloudDensity(normalize(pc+sc*.06),uCSeed);
+      gPx=keep;
+      lit*=1.-smoothstep(uCloud,uCloud+.25,cd)*.65;
+    }
     vec3 c=col*(.01+smoothstep(-.15,1.,ndl)*uSunCol*lit);   // soft terminator
     // water: tight sun glint + broad sheen, and sky reflection that grows at grazing angles (Fresnel)
     float nh=max(dot(n,normalize(uSun+v)),0.), day=smoothstep(-.1,.25,dot(p,uSun))*lit;
@@ -234,18 +277,16 @@ const bodyMat = new THREE.ShaderMaterial({
 
 const cloudMat = new THREE.ShaderMaterial({
   transparent:true, depthWrite:false,
-  uniforms:{ uSeed:{value:new THREE.Vector3()}, uCloud:num(.2), uCol:col3(), uSunCol:col3(),
-             uSun:{value:new THREE.Vector3()}, uTime:num(0), uStretch:num(1.75), uSwirl:num(0), ...ringUniforms() },
+  uniforms:{ uSeed:{value:new THREE.Vector3()}, uCol:col3(), uSunCol:col3(),
+             uSun:{value:new THREE.Vector3()}, uTime:num(0), ...cloudUniforms(), ...ringUniforms() },
   vertexShader: VERT,
   fragmentShader: NOISE + RINGFN + `
-  uniform vec3 uSeed,uCol,uSun,uSunCol; uniform float uCloud,uTime,uStretch,uSwirl;
-  varying vec3 vPos;
+  uniform vec3 uSeed,uCol,uSun,uSunCol; uniform float uTime;
+  varying vec3 vPos;` + CLOUDFN + `
   void main(){
     vec3 p=normalize(vPos);
     gPx=length(fwidth(p));
-    vec3 q=p*vec3(2.,2.*uStretch,2.)+uSeed.zxy+uTime*.015;
-    if(uSwirl>0.) q+=uSwirl*vec3(snoise(q*.6+2.),snoise(q*.6+5.),snoise(q*.6+9.));   // storm swirls
-    float c=fbm(q,2.*uStretch);
+    float c=cloudDensity(p,uSeed);
     float a=smoothstep(uCloud,uCloud+.2,c)*.95;
     float base=max(uCloud,-.5);
     vec3 shade=uCol*(.65+.35*smoothstep(base,base+.7,c));   // thicker cloud is brighter
@@ -401,7 +442,7 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45,1,.05,300);
+const camera = new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.05,300);
 camera.position.set(0,1.1,3.4);   // a little above the equator so rings aren't edge-on
 const controls = new OrbitControls(camera, renderer.domElement);
 Object.assign(controls,{enablePan:false,enableDamping:true,minDistance:1.15,maxDistance:40});
@@ -455,6 +496,7 @@ let moons = [];   // orbiting bodies: {pivot, mesh, speed, kindName}
 let mode = 'planet', autoDist = null, fitDist = 3.6, planetSpin = .05;
 // settings the wallpaper panel can change (defaults = normal website behaviour)
 const opts = { zoom:1, nebula:1, timeScale:1, parallax:0, allow:{planet:true, star:true, blackhole:true} };
+let wallpaper = false;   // set once Wallpaper Engine sends its settings
 
 // stars: up to two, each with a corona sprite, orbiting their common centre
 function makeStar(){
@@ -761,7 +803,8 @@ function build(seed){
   document.getElementById('seed').textContent = 'seed '+seed;
 }
 
-function applyZoom(){ autoDist = fitDist*opts.zoom; camera.position.setLength(autoDist); }
+// on portrait screens the narrow side limits the view, so back off further
+function applyZoom(){ autoDist = fitDist*opts.zoom*Math.max(1,.9/camera.aspect); camera.position.setLength(autoDist); }
 
 function buildPlanet(r, pick){
   const S = pickStar(r, SUN_POOL);
@@ -780,6 +823,12 @@ function buildPlanet(r, pick){
   cloudMat.uniforms.uStretch.value = k.stretch;
   cloudMat.uniforms.uSwirl.value = k.swirl;
   clouds.visible = k.cloud < 1;
+  // the planet draws the clouds' shadows itself, so it gets the same cloud settings
+  const pu = planetMat.uniforms;
+  for (const key of ['uCloud','uStretch','uSwirl']) pu[key].value = cloudMat.uniforms[key].value;
+  pu.uCSeed.value.copy(cloudMat.uniforms.uSeed.value);
+  pu.uCloudShadow.value = clouds.visible && k.cloud > -.5 ? 1 : 0;   // fully overcast worlds hide the ground anyway
+  planet.rotation.y = clouds.rotation.y = 0;   // keep cloud layer and ground in step from the start
   atmoMat.uniforms.uAtmo.value.copy(k.atmo);
   atmoMat.uniforms.uStr.value = k.atmoStr;
   atmo.visible = k.atmo !== BLACK;
@@ -826,18 +875,55 @@ const MAX = (1n<<64n)-1n;
 function fromHash(){ const s = location.hash.slice(1); return /^\d+$/.test(s) ? BigInt(s) & MAX : null; }
 // the first random number of a seed decides planet / star system / black hole (see build)
 function modeOf(seed){ const x = rngFor(seed)(); return x<.7 ? 'planet' : x<.9 ? 'star' : 'blackhole'; }
-function newWorld(){
+// each new world is a browser history entry, so Back/Forward (and the ◀ Back button) step through them;
+// state.d counts how many worlds deep we are, to know when there's nothing to go back to
+const prevBtn = document.getElementById('prev');
+const depth = () => history.state?.d ?? 0;
+function newWorld(push=!wallpaper){
   const any = Object.values(opts.allow).some(Boolean);
   let seed;
   for (let i=0;i<200;i++){   // reroll until it's a kind the wallpaper settings allow
     seed = crypto.getRandomValues(new BigUint64Array(1))[0];
     if (!any || opts.allow[modeOf(seed)]) break;
   }
-  history.replaceState(null,'','#'+seed);
+  if (push) history.pushState({d:depth()+1},'','#'+seed);
+  else history.replaceState({d:depth()},'','#'+seed);
   build(seed);
+  prevBtn.disabled = depth()===0;
 }
-addEventListener('hashchange',()=>{ const s=fromHash(); if (s!==null) build(s); });
-fromHash()!==null ? build(fromHash()) : newWorld();
+addEventListener('hashchange',()=>{ const s=fromHash(); if (s!==null) build(s); prevBtn.disabled = depth()===0; });
+if (fromHash()!==null){ history.replaceState({d:0},'',location.href); build(fromHash()); } else newWorld(false);
+prevBtn.disabled = true;
+
+// toolbar + keyboard
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg){ toastEl.textContent = msg; toastEl.style.opacity = 1; clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.style.opacity = 0, 1500); }
+function copyLink(){
+  navigator.clipboard.writeText(location.href).then(()=>toast('Link copied'), ()=>toast('Copy failed: the link is in the address bar'));
+}
+function screenshot(){
+  renderer.render(scene,camera);   // the drawing buffer is only readable right after a render
+  renderer.domElement.toBlob(b=>{
+    const a = Object.assign(document.createElement('a'), {href:URL.createObjectURL(b), download:document.getElementById('name').textContent+'.png'});
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  });
+}
+function toggleText(){
+  const clean = document.body.classList.toggle('clean');
+  document.getElementById('hide').textContent = clean ? 'Show text' : 'Hide text';
+}
+prevBtn.onclick = ()=>history.back();
+document.getElementById('next').onclick = ()=>newWorld();
+document.getElementById('copy').onclick = copyLink;
+document.getElementById('shot').onclick = screenshot;
+document.getElementById('hide').onclick = toggleText;
+addEventListener('keydown',e=>{
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.tagName==='BUTTON' && e.code==='Space') return;
+  const act = {Space:()=>newWorld(), ArrowRight:()=>newWorld(), ArrowLeft:()=>depth()>0 && history.back(),
+    KeyC:copyLink, KeyS:screenshot, KeyH:toggleText}[e.code];
+  if (act){ e.preventDefault(); act(); }
+});
 
 // click (not drag) = new world
 let down=null;
@@ -850,7 +936,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
 // --- Wallpaper Engine ---
 // Wallpaper Engine calls applyUserProperties on load with the settings from project.json, which switches
 // the page into wallpaper mode: no input (desktop clicks pass through), slow camera drift, worlds cycle on a timer.
-let wallpaper = false, fixedSeed = null, cycleMin = 10, cycleTimer = null, fpsLimit = 0, fadeSec = 1, shiftX = 0;
+let fixedSeed = null, cycleMin = 10, cycleTimer = null, fpsLimit = 0, fadeSec = 1, shiftX = 0;
 const fadeEl = document.getElementById('fade');
 function fadeTo(fn){
   if (fadeSec<=0) return fn();
@@ -873,7 +959,7 @@ window.wallpaperPropertyListener = {
   applyUserProperties(p){
     if (!wallpaper){
       wallpaper = true;
-      document.getElementById('hint').hidden = true;
+      document.getElementById('hint').hidden = document.getElementById('bar').hidden = true;
       Object.assign(controls,{enabled:false, autoRotate:true, autoRotateSpeed:.3});
     }
     if (p.showinfo) document.getElementById('info').hidden = !p.showinfo.value;
@@ -906,7 +992,6 @@ window.wallpaperPropertyListener = {
   },
   applyGeneralProperties(p){ if (p.fps!==undefined) fpsLimit = p.fps; },   // Wallpaper Engine's FPS limit
 };
-addEventListener('keydown',e=>{ if (e.code==='Space'){ e.preventDefault(); newWorld(); } });
 
 function resize(){
   renderer.setSize(innerWidth,innerHeight);
@@ -932,7 +1017,11 @@ function lightBody(mesh, sunW){
   u.uTime.value = simTime;
 }
 let lastFrame = 0, simTime = 0;
+const loadingEl = document.getElementById('loading');
+let frames = 0;
 renderer.setAnimationLoop(now=>{
+  // frame 0 does nothing so "Generating…" gets painted before the first render compiles the shaders (slow)
+  if (frames++===0) return;
   if (fpsLimit>0 && now-lastFrame < 1000/fpsLimit-1) return;   // skip frames to respect the FPS limit
   lastFrame = now;
   const realDt = clock.getDelta(), dt = realDt*opts.timeScale;
@@ -957,6 +1046,7 @@ renderer.setAnimationLoop(now=>{
   tilt.updateMatrixWorld();
   halo.quaternion.copy(camera.quaternion);
   lightBody(planet, SUN);
+  planetMat.uniforms.uCloudRot.value = planet.rotation.y-clouds.rotation.y;
   // around a star, light comes from the centre; otherwise from the distant sun
   for (const m of moons) lightBody(m.mesh, mode==='star' ? m.mesh.getWorldPosition(tmp).negate().normalize() : SUN);
   for (const s of stars){
@@ -971,6 +1061,7 @@ renderer.setAnimationLoop(now=>{
   ringMat.uniforms.uSunW.value.copy(SUN); ringMat.uniforms.uSunCol.value.copy(sunCol);
   ringPtsMat.uniforms.uSunW.value.copy(SUN); ringPtsMat.uniforms.uSunCol.value.copy(sunCol);
   renderer.render(scene,camera);
+  loadingEl.hidden = true;
 });
 </script>
 </body>
