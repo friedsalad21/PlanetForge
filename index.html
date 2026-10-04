@@ -311,12 +311,12 @@ const atmoMat = new THREE.ShaderMaterial({
 
 const ringMat = new THREE.ShaderMaterial({
   side:THREE.DoubleSide, transparent:true, depthWrite:false,
-  uniforms:{ uA:col3(), uB:col3(), uSunW:{value:new THREE.Vector3()}, uSunCol:col3(),
+  // everything in the ring's own space (planet at the origin, radius 1, ring normal = +z), so a ringed
+  // planet works anywhere and at any size; uSunL/uCamL are the sun direction and camera position in that space
+  uniforms:{ uA:col3(), uB:col3(), uSunL:{value:new THREE.Vector3()}, uCamL:{value:new THREE.Vector3()}, uSunCol:col3(),
              uK:{value:new THREE.Vector3()}, uIn:num(1.4), uOut:num(2.2), uGaps:{value:new THREE.Vector2()}, uDust:num(1) },
-  vertexShader:`varying vec3 vP,vW,vNw; void main(){ vP=position; vW=(modelMatrix*vec4(position,1.)).xyz;
-    vNw=normalize(mat3(modelMatrix)*vec3(0,0,1));
-    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader: RINGFN + `uniform vec3 uA,uB,uSunW,uSunCol,uK; uniform vec2 uGaps; uniform float uIn,uOut,uDust; varying vec3 vP,vW,vNw;
+  vertexShader:`varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: RINGFN + `uniform vec3 uA,uB,uSunL,uCamL,uSunCol,uK; uniform vec2 uGaps; uniform float uIn,uOut,uDust; varying vec3 vP;
   // ringlets all the way down: octaves of 1D noise until they'd be thinner than a pixel
   float ringlets(float x, float px){
     float s=0., a=.5, norm=0.;
@@ -335,9 +335,9 @@ const ringMat = new THREE.ShaderMaterial({
     float k=600., grain=fract(sin(dot(floor(vP.xy*k),vec2(12.9898,78.233)))*43758.5);
     b*=1.+(grain-.5)*.5*(1.-smoothstep(.3,.8,length(fwidth(vP.xy))*k));
     float a=ringAlpha(t,b,uGaps,uDust);                         // sparse bands go see-through
-    float shadow=(dot(vW,uSunW)<0. && length(cross(vW,uSunW))<1.)?.08:1.;   // planet's shadow on the ring
+    float shadow=(dot(vP,uSunL)<0. && length(cross(vP,uSunL))<1.)?.08:1.;   // planet's shadow on the ring
     // seen from the sunlit face the ring reflects; from the dark face only thin parts glow with light passing through
-    float sideS=dot(vNw,uSunW), sideV=dot(vNw,cameraPosition-vW);
+    float sideS=uSunL.z, sideV=uCamL.z;
     float light=sideS*sideV>0. ? .75+.5*abs(sideS) : .3+.6*(1.-a);
     vec3 col=mix(uA,uB,b)*mix(.8,1.2,n1(t*uK.z*2.+4.));        // slight colour drift across the rings
     gl_FragColor=vec4(col*uSunCol*light*(.05+.95*shadow),a);
@@ -349,20 +349,21 @@ const ringMat = new THREE.ShaderMaterial({
 // position holds (u across the ring, angle, height); they fade in as the camera gets close.
 const ringPtsMat = new THREE.ShaderMaterial({
   transparent:true, depthWrite:false,
+  // uSunL: sun direction in the planet's space; uBody: the planet's size in the scene (1 = main planet)
   uniforms:{ uIn:num(1.4), uOut:num(2.2), uK:{value:new THREE.Vector3()}, uGaps:{value:new THREE.Vector2()}, uDust:num(1),
-             uA:col3(), uB:col3(), uSunW:{value:new THREE.Vector3()}, uSunCol:col3(), uScale:num(1), uThick:num(.02) },
-  vertexShader: RINGFN + `uniform float uIn,uOut,uDust,uScale,uThick; uniform vec3 uK,uA,uB,uSunW,uSunCol; uniform vec2 uGaps;
+             uA:col3(), uB:col3(), uSunL:{value:new THREE.Vector3()}, uSunCol:col3(), uScale:num(1), uThick:num(.02), uBody:num(1) },
+  vertexShader: RINGFN + `uniform float uIn,uOut,uDust,uScale,uThick,uBody; uniform vec3 uK,uA,uB,uSunL,uSunCol; uniform vec2 uGaps;
   attribute float aRand; varying float vA; varying vec3 vCol;
   void main(){
     float r=uIn+position.x*(uOut-uIn);
-    vec4 wp=modelMatrix*vec4(cos(position.y)*r, position.z*uThick*(.3+aRand), sin(position.y)*r, 1.);
+    vec3 lp=vec3(cos(position.y)*r, position.z*uThick*(.3+aRand), sin(position.y)*r);
     vA=ringAlpha(position.x,ringBands(position.x,uK),uGaps,uDust);
-    float shadow=(dot(wp.xyz,uSunW)<0. && length(cross(wp.xyz,uSunW))<1.)?.08:1.;
+    float shadow=(dot(lp,uSunL)<0. && length(cross(lp,uSunL))<1.)?.08:1.;
     vCol=mix(uA,uB,aRand)*uSunCol*(.6+.8*aRand)*(.1+.9*shadow);
-    vec4 mv=viewMatrix*wp;
+    vec4 mv=modelViewMatrix*vec4(lp,1.);
     float d=-mv.z;
-    vA*=1.-smoothstep(1.5,5.,d);
-    gl_PointSize=clamp(uScale*.003*(.5+aRand)/d,1.,8.);   // ~0.003-unit chunks in perspective
+    vA*=1.-smoothstep(1.5,5.,d/uBody);
+    gl_PointSize=clamp(uScale*.003*uBody*(.5+aRand)/d,1.,8.);   // ~0.003-planet-radius chunks in perspective
     gl_Position=projectionMatrix*mv;
   }`,
   fragmentShader:`varying float vA; varying vec3 vCol;
@@ -474,26 +475,20 @@ sunSprite.position.copy(SUN).multiplyScalar(90);
 scene.add(sunSprite);
 
 const tilt = new THREE.Group(); scene.add(tilt);
-const planetMat = bodyMat.clone();
-const planet = new THREE.Mesh(new THREE.SphereGeometry(1,256,256), planetMat);
-const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.02,96,96), cloudMat);
-const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.12,96,96), atmoMat);
-const rings = new THREE.Mesh(new THREE.RingGeometry(1,2,256,1), ringMat);
-rings.rotation.x = -Math.PI/2;
-const ringPts = (() => {
+// geometry shared by every world (each world gets its own materials, see makeWorld)
+const BODY_GEO = new THREE.SphereGeometry(1,256,256), CLOUD_GEO = new THREE.SphereGeometry(1.02,96,96),
+  ATMO_GEO = new THREE.SphereGeometry(1.12,96,96), moonGeo = new THREE.SphereGeometry(1,128,128);
+const RING_PTS_GEO = (() => {   // particles store (u across the ring, angle, height); the shader places them
   const N = 60000, pos = new Float32Array(N*3), rnd = new Float32Array(N);
   for (let i=0;i<N;i++){ pos.set([Math.random(), Math.random()*Math.PI*2, Math.random()*2-1], i*3); rnd[i] = Math.random(); }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos,3));
   g.setAttribute('aRand', new THREE.BufferAttribute(rnd,1));
-  const pts = new THREE.Points(g, ringPtsMat);
-  pts.frustumCulled = false;   // real positions are computed in the shader
-  return pts;
+  return g;
 })();
-tilt.add(planet, clouds, atmo, rings, ringPts);
-const moonGeo = new THREE.SphereGeometry(1,128,128);
-let moons = [];   // orbiting bodies: {pivot, mesh, speed, kindName}
-let mode = 'planet', autoDist = null, fitDist = 3.6, planetSpin = .05;
+const pxScale = {value:1};   // pixels per unit at distance 1, shared by all ring-particle materials (set in resize)
+let worlds = [];   // generated planets in the scene: the main planet, or every planet orbiting a star
+let mode = 'planet', autoDist = null, fitDist = 3.6;
 // settings the wallpaper panel can change (defaults = normal website behaviour)
 const opts = { zoom:1, nebula:1, timeScale:1, parallax:0, allow:{planet:true, star:true, blackhole:true} };
 let wallpaper = false;   // set once Wallpaper Engine sends its settings
@@ -515,7 +510,8 @@ disk.rotation.x = -Math.PI/2;
 const halo = new THREE.Mesh(new THREE.PlaneGeometry(8,8), haloMat);
 halo.scale.setScalar(.56);
 const belt = new THREE.Points(new THREE.BufferGeometry(),
-  new THREE.PointsMaterial({size:.022,sizeAttenuation:true,transparent:true,depthWrite:false}));
+  new THREE.PointsMaterial({size:.022,sizeAttenuation:true,transparent:true,depthWrite:false,
+    map:glowTexture([[0,1],[.55,1],[.75,0],[1,0]])}));   // round rocks instead of square points
 tilt.add(binary, horizon, disk, belt);
 scene.add(halo);
 
@@ -682,21 +678,95 @@ function applyKind(mat, k, r){
     u['u'+key[0].toUpperCase()+key.slice(1)].value.copy(k[key]);
 }
 
-function addOrbiters(r, n, orbit, pool, [s0,s1], [g0,g1]){
-  for (let i=0;i<n;i++){
-    const kindName = pool[Math.floor(r()*pool.length)];
-    const mat = bodyMat.clone();
-    applyKind(mat, makeKind(kindName, r), r);
-    const mesh = new THREE.Mesh(moonGeo, mat);
-    mesh.scale.setScalar(s0+r()*(s1-s0));
-    orbit += g0+r()*g1;
+// A complete generated planet in its own group, in units of its radius: surface, clouds, atmosphere,
+// maybe rings, and its moons. Used for the main planet and for every planet orbiting a star
+// (whose group is then scaled down). moonMax(k) / minOneMoon tune how many moons it gets.
+function makeWorld(r, kindName, {moonMax = k => k.moons, minOneMoon = true} = {}){
+  const k = makeKind(kindName, r);
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(BODY_GEO, bodyMat.clone());
+  applyKind(body.material, k, r);
+  const spin = k.locked ? 0 : k.gas ? .08+r()*.1 : k.spin;
+
+  const clouds = new THREE.Mesh(CLOUD_GEO, cloudMat.clone());
+  const cu = clouds.material.uniforms, bu = body.material.uniforms;
+  cu.uSeed.value.copy(bu.uSeed.value);
+  cu.uCloud.value = k.cloud; cu.uCol.value.copy(k.cloudCol);
+  cu.uStretch.value = k.stretch; cu.uSwirl.value = k.swirl;
+  clouds.visible = k.cloud < 1;
+  // the surface draws the clouds' shadows itself, so it gets the same cloud settings
+  for (const key of ['uCloud','uStretch','uSwirl']) bu[key].value = cu[key].value;
+  bu.uCSeed.value.copy(cu.uSeed.value);
+  bu.uCloudShadow.value = clouds.visible && k.cloud > -.5 ? 1 : 0;   // fully overcast worlds hide the ground anyway
+
+  const atmo = new THREE.Mesh(ATMO_GEO, atmoMat.clone());
+  atmo.material.uniforms.uAtmo.value.copy(k.atmo);
+  atmo.material.uniforms.uStr.value = k.atmoStr;
+  atmo.visible = k.atmo !== BLACK;
+  group.add(body, clouds, atmo);
+
+  const w = {group, body, clouds, atmo, rings:null, ringPts:null, moons:[], spin, k, kindName};
+  let reach = 1;   // how far the world extends (rings, moon orbits), in its own radii
+  if (r() < k.rings){
+    const inner = 1.25+r()*.35, outer = inner+.4+r()*1.1;
+    w.rings = new THREE.Mesh(new THREE.RingGeometry(inner,outer,256,1), ringMat.clone());
+    w.rings.rotation.x = -Math.PI/2;
+    w.ringPts = new THREE.Points(RING_PTS_GEO, ringPtsMat.clone());
+    w.ringPts.frustumCulled = false;   // real positions are computed in the shader
+    const u = w.rings.material.uniforms, pu = w.ringPts.material.uniforms;
+    pu.uScale = pxScale;
+    u.uIn.value = inner; u.uOut.value = outer;
+    u.uK.value.set(20+r()*80, 7+r()*30, 3+r()*10);
+    u.uGaps.value.set(.15+r()*.6, r()<.5 ? r() : -1);
+    u.uDust.value = .5+r()*.5;
+    const hue = r(), tinted = r()<.35;
+    u.uA.value.copy(k.gas && !tinted ? k.snow : c(hue,tinted?.35:.15,.72));
+    u.uB.value.copy(k.gas && !tinted ? k.rock : c(hue+.05,tinted?.4:.2,.45));
+    r();   // (used to be a spin of the ring in its own plane; kept so seeds stay the same)
+    // particles and the shadows on surface + clouds share the ring's bands
+    for (const key of ['uIn','uOut','uDust']) pu[key].value = u[key].value;
+    for (const key of ['uK','uGaps','uA','uB']) pu[key].value.copy(u[key].value);
+    for (const s of [bu, cu]){
+      s.uRinged.value = 1; s.uRIn.value = inner; s.uROut.value = outer; s.uRDust.value = u.uDust.value;
+      s.uRK.value.copy(u.uK.value); s.uRGaps.value.copy(u.uGaps.value);
+    }
+    group.add(w.rings, w.ringPts);
+    reach = outer;
+  }
+
+  const max = moonMax(k);
+  const nMoons = Math.max(minOneMoon ? (r()<.15 ? 0 : 1) : 0, Math.floor(r()*(max+1)));   // most main planets get one
+  let orbit = w.rings ? reach+.4 : 1.7;
+  for (let i=0;i<nMoons;i++){
+    const moonKind = MOON_POOL[Math.floor(r()*MOON_POOL.length)];
+    const mesh = new THREE.Mesh(moonGeo, bodyMat.clone());
+    applyKind(mesh.material, makeKind(moonKind, r), r);
+    const size = .1+r()*.18;
+    mesh.scale.setScalar(size);
+    orbit += .35+r()*.55;
     mesh.position.x = orbit;
     const pivot = new THREE.Group();
     pivot.rotation.set((r()-.5)*.3, r()*Math.PI*2, (r()-.5)*.3);
-    pivot.add(mesh); tilt.add(pivot);
-    moons.push({pivot, mesh, speed:.6/orbit**1.5, kindName});
+    pivot.add(mesh); group.add(pivot);
+    w.moons.push({pivot, mesh, speed:.6/orbit**1.5});
+    reach = orbit+size;
   }
-  return orbit;
+  w.reach = reach;
+  return w;
+}
+
+function disposeWorld(w){
+  w.group.traverse(o => o.material?.dispose());
+  w.rings?.geometry.dispose();
+  w.group.removeFromParent();
+}
+
+// short description of a world: "Gas giant (ringed, 2 moons)"
+function describe(w){
+  const extra = [];
+  if (w.rings) extra.push('ringed');
+  if (w.moons.length) extra.push(`${w.moons.length} moon${w.moons.length>1?'s':''}`);
+  return w.kindName + (extra.length ? ` (${extra.join(', ')})` : '');
 }
 
 function makeBelt(r, radius, width){
@@ -724,13 +794,12 @@ function build(seed){
   const roll = r();
   mode = roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole';
   controls.minDistance = 1.15;
-  for (const o of [planet, clouds, atmo, rings, ringPts]) o.visible = mode==='planet';
   binary.visible = mode==='star';
   for (const o of [horizon, disk, halo]) o.visible = mode==='blackhole';
   sunSprite.visible = mode==='planet';
   belt.visible = false;
-  for (const m of moons){ tilt.remove(m.pivot); m.mesh.material.dispose(); }
-  moons = [];
+  for (const w of worlds) disposeWorld(w);
+  worlds = [];
 
   let orbit, bits;
   if (mode==='star'){
@@ -765,13 +834,25 @@ function build(seed){
       glow.material.map = SOFT_TEX; glow.scale.setScalar(40); glow.material.color.copy(c(.6,.8,.5));
     }
     const n = 1+Math.floor(r()*5), beltAfter = r()<.5 ? Math.floor(r()*(n+1)) : -1;
-    orbit = reach+.5;
+    orbit = reach+.5;   // the inner edge of free space, moving outwards as planets are placed
     for (let i=0;i<=n;i++){
-      if (i===beltAfter){ const w = .25+r()*.3; orbit += .4+w; makeBelt(r, orbit, w); belt.visible = true; orbit += w; }
-      if (i<n) orbit = addOrbiters(r, 1, orbit, KIND_POOL, [.1,.28], [.5,.6]);
+      if (i===beltAfter){ const bw = .25+r()*.3; orbit += .4+bw; makeBelt(r, orbit, bw); belt.visible = true; orbit += bw; }
+      if (i===n) break;
+      // every planet is a full world of its own (clouds, rings, moons), shrunk to fit in the system
+      const w = makeWorld(r, pick(KIND_POOL), {moonMax: k => Math.min(k.moons, k.gas ? 3 : 2), minOneMoon:false});
+      const size = w.k.gas ? .2+r()*.15 : .08+r()*.12, extent = w.reach*size;
+      orbit += .3+r()*.4+extent;   // centre of this planet's orbit, clear of the previous one
+      w.group.scale.setScalar(size);
+      w.group.position.x = orbit;
+      w.pivot = new THREE.Group();
+      w.pivot.rotation.set((r()-.5)*.2, r()*Math.PI*2, (r()-.5)*.2);
+      w.pivot.add(w.group); tilt.add(w.pivot);
+      w.speed = .6/orbit**1.5;
+      worlds.push(w);
+      orbit += extent;
     }
     const name = (isBinary ? 'Binary: '+A.name+' + '+B.name : A.name);
-    bits = [name[0].toUpperCase()+name.slice(1), `${n} planet${n>1?'s':''}: `+moons.map(m=>m.kindName).join(', ')];
+    bits = [name[0].toUpperCase()+name.slice(1), `${n} planet${n>1?'s':''}: `+worlds.map(describe).join(', ')];
     if (belt.visible) bits.push('asteroid belt');
   } else if (mode==='blackhole'){
     const outer = 1.8+r()*1.8, h = r();
@@ -812,62 +893,18 @@ function buildPlanet(r, pick){
   sunSprite.material.color.copy(S.col);
   sunSprite.scale.setScalar(8+S.size*10);
 
-  const kindName = pick(KIND_POOL);
-  const k = makeKind(kindName, r);
-  applyKind(planetMat, k, r);
-  planetSpin = k.locked ? 0 : k.gas ? .08+r()*.1 : k.spin;
+  const w = makeWorld(r, pick(KIND_POOL));
+  tilt.add(w.group);
+  worlds.push(w);
 
-  cloudMat.uniforms.uSeed.value.copy(planetMat.uniforms.uSeed.value);
-  cloudMat.uniforms.uCloud.value = k.cloud;
-  cloudMat.uniforms.uCol.value.copy(k.cloudCol);
-  cloudMat.uniforms.uStretch.value = k.stretch;
-  cloudMat.uniforms.uSwirl.value = k.swirl;
-  clouds.visible = k.cloud < 1;
-  // the planet draws the clouds' shadows itself, so it gets the same cloud settings
-  const pu = planetMat.uniforms;
-  for (const key of ['uCloud','uStretch','uSwirl']) pu[key].value = cloudMat.uniforms[key].value;
-  pu.uCSeed.value.copy(cloudMat.uniforms.uSeed.value);
-  pu.uCloudShadow.value = clouds.visible && k.cloud > -.5 ? 1 : 0;   // fully overcast worlds hide the ground anyway
-  planet.rotation.y = clouds.rotation.y = 0;   // keep cloud layer and ground in step from the start
-  atmoMat.uniforms.uAtmo.value.copy(k.atmo);
-  atmoMat.uniforms.uStr.value = k.atmoStr;
-  atmo.visible = k.atmo !== BLACK;
-
-  const ringed = r() < k.rings;
-  rings.visible = ringPts.visible = ringed;
-  planetMat.uniforms.uRinged.value = cloudMat.uniforms.uRinged.value = ringed ? 1 : 0;
-  if (ringed){
-    const inner = 1.25+r()*.35, outer = inner+.4+r()*1.1;
-    rings.geometry.dispose(); rings.geometry = new THREE.RingGeometry(inner,outer,256,1);
-    const u = ringMat.uniforms, pu = ringPtsMat.uniforms;
-    u.uIn.value = inner; u.uOut.value = outer;
-    u.uK.value.set(20+r()*80, 7+r()*30, 3+r()*10);
-    u.uGaps.value.set(.15+r()*.6, r()<.5 ? r() : -1);
-    u.uDust.value = .5+r()*.5;
-    const hue = r(), tinted = r()<.35;
-    u.uA.value.copy(k.gas && !tinted ? k.snow : c(hue,tinted?.35:.15,.72));
-    u.uB.value.copy(k.gas && !tinted ? k.rock : c(hue+.05,tinted?.4:.2,.45));
-    r();   // (used to be a spin of the ring in its own plane; kept so seeds stay the same)
-    // particles and the shadows on planet + clouds share the ring's bands
-    for (const key of ['uIn','uOut','uDust']) pu[key].value = u[key].value;
-    for (const key of ['uK','uGaps','uA','uB']) pu[key].value.copy(u[key].value);
-    for (const m of [planetMat, cloudMat]){
-      const s = m.uniforms;
-      s.uRIn.value = inner; s.uROut.value = outer; s.uRDust.value = u.uDust.value;
-      s.uRK.value.copy(u.uK.value); s.uRGaps.value.copy(u.uGaps.value);
-    }
-  }
-
-  const nMoons = Math.max(r()<.15 ? 0 : 1, Math.floor(r()*(k.moons+1)));   // most worlds get at least one
-  const orbit = addOrbiters(r, nMoons, ringed ? ringMat.uniforms.uOut.value+.4 : 1.7, MOON_POOL, [.1,.28], [.35,.55]);
-
+  const {kindName, k} = w, nMoons = w.moons.length;
   const bits = [NOT_WORLD.has(kindName) ? kindName : kindName+' world',
     nMoons ? `${nMoons} moon${nMoons>1?'s':''}` : 'no moons'];
-  if (ringed) bits.push('ringed');
+  if (w.rings) bits.push('ringed');
   if (k.locked) bits.push('tidally locked');
   if (k.city) bits.push('inhabited');
   bits.push('orbiting a '+S.name);
-  return {orbit, bits};
+  return {orbit:w.reach, bits};
 }
 
 // seeds are unsigned 64-bit integers written in the URL hash
@@ -1001,7 +1038,7 @@ function resize(){
   else camera.clearViewOffset();
   camera.updateProjectionMatrix();
   // pixels per world unit at distance 1, for sizing ring particles
-  ringPtsMat.uniforms.uScale.value = renderer.getPixelRatio()*innerHeight/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+  pxScale.value = renderer.getPixelRatio()*innerHeight/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
 }
 addEventListener('resize',resize); resize();
 
@@ -1016,8 +1053,25 @@ function lightBody(mesh, sunW){
   u.uSunCol.value.copy(sunCol);
   u.uTime.value = simTime;
 }
-let lastFrame = 0, simTime = 0;
-const loadingEl = document.getElementById('loading');
+// light one world (surface, clouds, atmosphere, rings, moons) from the sun direction sunW
+const sunTmp = new THREE.Vector3();
+function lightWorld(w, sunW){
+  lightBody(w.body, sunW);
+  w.body.material.uniforms.uCloudRot.value = w.body.rotation.y-w.clouds.rotation.y;
+  const cu = w.clouds.material.uniforms;
+  cu.uSun.value.copy(toLocal(w.clouds,sunW)); cu.uSunCol.value.copy(sunCol); cu.uTime.value = simTime;
+  const au = w.atmo.material.uniforms;
+  au.uSunW.value.copy(sunW); au.uSunCol.value.copy(sunCol);
+  if (w.rings){
+    const ru = w.rings.material.uniforms, pu = w.ringPts.material.uniforms;
+    ru.uSunL.value.copy(toLocal(w.rings,sunW)); ru.uSunCol.value.copy(sunCol);
+    ru.uCamL.value.copy(w.rings.worldToLocal(camera.position.clone()));
+    pu.uSunL.value.copy(toLocal(w.ringPts,sunW)); pu.uSunCol.value.copy(sunCol);
+    pu.uBody.value = w.group.scale.x;
+  }
+  for (const m of w.moons) lightBody(m.mesh, sunW);
+}
+let lastFrame = 0, simTime = 0;const loadingEl = document.getElementById('loading');
 let frames = 0;
 renderer.setAnimationLoop(now=>{
   // frame 0 does nothing so "Generating…" gets painted before the first render compiles the shaders (slow)
@@ -1026,12 +1080,15 @@ renderer.setAnimationLoop(now=>{
   lastFrame = now;
   const realDt = clock.getDelta(), dt = realDt*opts.timeScale;
   const time = simTime += dt;
-  planet.rotation.y += dt*planetSpin;
-  clouds.rotation.y += dt*(planetSpin+.015);
+  for (const w of worlds){
+    w.body.rotation.y += dt*w.spin;
+    w.clouds.rotation.y += dt*(w.spin+.015);
+    if (w.pivot) w.pivot.rotation.y += dt*w.speed;   // orbiting its star
+    for (const m of w.moons){ m.pivot.rotation.y += dt*m.speed; m.mesh.rotation.y += dt*.1; }
+  }
   binary.rotation.y += dt*(binary.userData.spin||0);
   belt.rotation.y += dt*.02;
   for (const s of stars) s.rotation.y += dt*.03;
-  for (const m of moons){ m.pivot.rotation.y += dt*m.speed; m.mesh.rotation.y += dt*.1; }
   // mouse parallax: nudge the camera sideways/up a little, removed again before the controls update
   camera.position.sub(parallax);
   controls.update();
@@ -1045,21 +1102,13 @@ renderer.setAnimationLoop(now=>{
   } else parallax.set(0,0,0);
   tilt.updateMatrixWorld();
   halo.quaternion.copy(camera.quaternion);
-  lightBody(planet, SUN);
-  planetMat.uniforms.uCloudRot.value = planet.rotation.y-clouds.rotation.y;
   // around a star, light comes from the centre; otherwise from the distant sun
-  for (const m of moons) lightBody(m.mesh, mode==='star' ? m.mesh.getWorldPosition(tmp).negate().normalize() : SUN);
+  for (const w of worlds) lightWorld(w, mode==='star' ? w.group.getWorldPosition(sunTmp).negate().normalize() : SUN);
   for (const s of stars){
     s.material.uniforms.uTime.value = time;
     s.material.uniforms.uCam.value.copy(s.worldToLocal(camera.position.clone()));
   }
   diskMat.uniforms.uTime.value = time;
-  cloudMat.uniforms.uSun.value.copy(toLocal(clouds,SUN));
-  cloudMat.uniforms.uSunCol.value.copy(sunCol);
-  cloudMat.uniforms.uTime.value = time;
-  atmoMat.uniforms.uSunW.value.copy(SUN); atmoMat.uniforms.uSunCol.value.copy(sunCol);
-  ringMat.uniforms.uSunW.value.copy(SUN); ringMat.uniforms.uSunCol.value.copy(sunCol);
-  ringPtsMat.uniforms.uSunW.value.copy(SUN); ringPtsMat.uniforms.uSunCol.value.copy(sunCol);
   renderer.render(scene,camera);
   loadingEl.hidden = true;
 });

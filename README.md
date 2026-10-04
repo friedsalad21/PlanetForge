@@ -6,7 +6,7 @@ Procedural space in the browser, built with three.js. Every world comes from a 6
 
 - **Planets:** 31 types, from Earth-like and ocean worlds to canyons, crystal worlds, tidally locked eyeballs, Venus-like cloud worlds, ice giants and hot Jupiters. Waves, sun glint, cloud and ring shadows, snow and ice, and night-side city lights.
 - **Rings and moons:** banded rings with gaps and particles, and cratered rocky, icy, sulphur, rusty and dark moons.
-- **Star systems:** 9 star types, including binary stars, neutron stars and asteroid belts, each with planets orbiting.
+- **Star systems:** 9 star types, including binary stars, neutron stars and asteroid belts. Every orbiting planet is a full world of its own, with its own surface, clouds, atmosphere, rings and moons.
 - **Black holes:** swirling accretion disks of different colours.
 - **Detail at any zoom:** the surfaces are drawn from layered noise that keeps adding finer detail as you zoom in.
 
