@@ -14,6 +14,8 @@ Procedural space in the browser, built with three.js. Every world comes from a 6
 - **Rare finds:** rogue planets, Dyson swarms and shells, space stations and drifting wrecks. Rare combinations are marked Uncommon, Rare, Epic or Legendary.
 - **Detail at any zoom:** surfaces keep adding finer detail as you zoom in, and far bodies fade to dots.
 
+**Runs smoothly anywhere:** quality drops automatically when the frame rate falls and comes back when there's headroom. Settings are remembered, and the page follows your system's reduced-motion setting.
+
 What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, galaxies and a whole universe, landing on planets and more).
 
 ## Controls
@@ -30,13 +32,13 @@ What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, gal
 | O | Show orbits |
 | F | Free flight: W A S D move, mouse looks (click to lock), Shift boosts, Q / E roll, R / C up / down, wheel sets speed |
 | C | Copy a link to this exact view |
-| S | Save a screenshot |
-| H | Hide the text |
-| ? | All controls |
+| S | Save a screenshot, up to 4× the screen's resolution |
+| H | Hide all the UI (screenshot mode) |
+| ? · ⚙ | All controls · settings (quality, frame-rate cap, glow, brightness, motion, text, screenshot size) |
 
 ## Wallpaper Engine
 
-The repo doubles as a Wallpaper Engine web wallpaper. In Wallpaper Engine, choose **Open Wallpaper → Open from File** and pick `project.json`. Its settings panel controls how often the world changes, which kinds of objects appear, the tour from body to body, orbit lines, glow, zoom, position, camera angle and drift, mouse parallax, animation speed, brightness and colour, text, render quality and the FPS limit. three.js is bundled in `lib/`, so it works offline.
+The repo doubles as a Wallpaper Engine web wallpaper. In Wallpaper Engine, choose **Open Wallpaper → Open from File** and pick `project.json`. Its settings panel controls how often the world changes, which kinds of objects appear, the tour from body to body, orbit lines, glow, automatic quality, zoom, position, camera angle and drift, mouse parallax, animation speed, brightness and colour, text, render quality and the FPS limit. three.js is bundled in `lib/`, so it works offline.
 
 ## Code
 
@@ -55,6 +57,8 @@ The repo doubles as a Wallpaper Engine web wallpaper. In Wallpaper Engine, choos
 | `orbit.js` | Kepler orbits and orbit lines |
 | `camera.js` | focus, fly-to, free flight, the wallpaper tour, floating origin |
 | `ui.js` | toolbar, keys, mouse and touch, links |
+| `settings.js` · `perf.js` | display and motion settings (shared by the website and the wallpaper) · automatic quality |
+| `warmup.js` | compiles the shaders other worlds need in the background |
 | `wallpaper.js` | Wallpaper Engine settings |
 
 Seeds stay stable: everything added after the original generator draws from a second random stream, so old links still show the same worlds, apart from the few that rolled one of the rare new finds. Type `PF` in the browser console to poke at the current world.

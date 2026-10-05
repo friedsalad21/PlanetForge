@@ -168,7 +168,7 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
   w.spin = spin;
   bu.uSeason.value = 1;
   if (WET.has(kindName) && x() < .85){ bu.uRivers.value = 1; w.features.push('rivers'); }
-  if (STORMY.has(kindName) && clouds.visible && x() < .6){ cu.uLightning.value = .7+x()*.6; w.features.push('lightning storms'); }
+  if (STORMY.has(kindName) && clouds.visible && x() < .6){ w.lightning = cu.uLightning.value = .7+x()*.6; w.features.push('lightning storms'); }
   if (k.gas){
     const roll = x();
     const kind = kindName==='Ice giant' ? (roll<.55 ? 1 : roll<.75 ? 0 : roll<.9 ? 2 : 3)

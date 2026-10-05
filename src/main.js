@@ -6,14 +6,33 @@
 //   ui.js        toolbar, keys, links            wallpaper.js  Wallpaper Engine settings
 import * as THREE from 'three';
 import { S, opts } from './state.js';
-import { renderer, camera, controls, root, scene, render, SUN } from './scene.js';
+import { renderer, camera, controls, root, scene, render, SUN, skyScene, skyCamera, composer } from './scene.js';
 import { updateSystem, lightAll, updateLOD } from './system.js';
 import { C, updateCamera, flyTo } from './camera.js';
 import { start, load } from './ui.js';
 import { build } from './system.js';
-import { wp } from './wallpaper.js';
+import './wallpaper.js';
+import { settings, loadSaved } from './settings.js';
+import { perfTick } from './perf.js';
+import { warmUp } from './warmup.js';
 
+loadSaved();
 start();
+
+// Compile the shaders before the first frame, without freezing the page: "Generating…" stays up meanwhile.
+// They're compiled for the HDR target the composer draws into, so the first real frame reuses them.
+let ready = false;
+async function compileAll(){
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // let "Generating…" paint
+  updateSystem(0); root.updateMatrixWorld(true); camera.updateMatrixWorld(); updateLOD(); lightAll();
+  renderer.setRenderTarget(composer.renderTarget1);
+  try { await renderer.compileAsync(skyScene, skyCamera); await renderer.compileAsync(scene, camera); }
+  catch (e) { console.warn('shader precompile failed', e); }
+  renderer.setRenderTarget(null);
+  ready = true;
+  (window.requestIdleCallback ?? setTimeout)(() => warmUp());   // then the shaders other worlds will need
+}
+compileAll();
 
 const clock = new THREE.Clock(), loadingEl = document.getElementById('loading');
 const mouse = new THREE.Vector2(), mouseSmooth = new THREE.Vector2(), parallax = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -21,11 +40,11 @@ addEventListener('mousemove', e => mouse.set(e.clientX/innerWidth*2-1, -(e.clien
 let lastFrame = 0, frames = 0;
 
 renderer.setAnimationLoop(now => {
-  // frame 0 does nothing so "Generating…" gets painted before the first render compiles the shaders (slow)
-  if (frames++===0) return;
-  if (wp.fpsLimit>0 && now-lastFrame < 1000/wp.fpsLimit-1) return;   // skip frames to respect the FPS limit
+  if (!ready) return;
+  if (settings.fps>0 && now-lastFrame < 1000/settings.fps-1) return;   // skip frames to respect the FPS limit
   lastFrame = now;
-  const realDt = Math.min(clock.getDelta(), .1);
+  const rawDt = clock.getDelta(), realDt = Math.min(rawDt, .1);
+  if (frames++ > 5) perfTick(rawDt);
   const dt = realDt*opts.timeScale*S.time.scale;               // orbital time: pause, slow motion, fast-forward
   S.simTime += dt;
   S.fxTime += realDt*opts.timeScale*Math.min(S.time.scale, 3);  // surfaces animate at most 3× so they don't boil

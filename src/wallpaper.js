@@ -3,13 +3,12 @@
 // to body, and a new world on a timer.
 import * as THREE from 'three';
 import { S, opts, flags } from './state.js';
-import { renderer, camera, controls, bloom, resize, view } from './scene.js';
-import { nebulaMat } from './materials.js';
-import { refreshSky, setOrbitsVisible } from './system.js';
+import { camera, controls, resize, view } from './scene.js';
+import { apply } from './settings.js';
 import { autoDist, C, systemView } from './camera.js';
 import { newWorld, load, parseHash } from './ui.js';
 
-export const wp = { fpsLimit:0, fixedSeed:null };
+export const wp = { fixedSeed:null };
 let cycleMin = 10, cycleTimer = null, fadeSec = 1;
 const fadeEl = document.getElementById('fade');
 export function fadeTo(fn){
@@ -21,8 +20,6 @@ function setElevation(deg){   // camera height above the system's plane, keeping
   s.phi = THREE.MathUtils.degToRad(90-deg);
   camera.position.copy(controls.target).add(off.setFromSpherical(s));
 }
-const cssFilter = {brightness:100, saturate:100};
-function applyFilter(){ renderer.domElement.style.filter = `brightness(${cssFilter.brightness}%) saturate(${cssFilter.saturate}%)`; }
 function restartCycle(){
   clearInterval(cycleTimer);
   if (cycleMin>0 && wp.fixedSeed===null) cycleTimer = setInterval(()=>fadeTo(newWorld), cycleMin*60000);
@@ -32,11 +29,12 @@ window.wallpaperPropertyListener = {
     if (!flags.wallpaper){
       flags.wallpaper = true;
       for (const id of ['hint','bar','timebar']) document.getElementById(id).hidden = true;
-      Object.assign(controls, {enabled:false, autoRotate:true, autoRotateSpeed:.3});
+      controls.enabled = false;
+      apply('reducedMotion', false, false);   // the wallpaper's own drift and tour settings decide how much moves
+      apply('drift', .3, false);
+      apply('quality', 100, false);
     }
     if (p.showinfo) document.getElementById('info').hidden = !p.showinfo.value;
-    if (p.drift) controls.autoRotateSpeed = p.drift.value;
-    if (p.quality){ renderer.setPixelRatio(Math.min(devicePixelRatio,2)*p.quality.value/100); resize(); }
     if (p.seed){
       const s = p.seed.value.trim(), h = parseHash(s);
       wp.fixedSeed = h ? h.seed : null;
@@ -51,21 +49,22 @@ window.wallpaperPropertyListener = {
     if (p.zoom){ opts.zoom = p.zoom.value/100; if (!C.focus) camera.position.sub(controls.target).setLength(autoDist()).add(controls.target); }
     if (p.angle) setElevation(p.angle.value);
     if (p.shift){ view.shiftX = p.shift.value/100; resize(); }
-    if (p.speed) opts.timeScale = p.speed.value;
-    if (p.parallax) opts.parallax = p.parallax.value;
-    if (p.brightness){ cssFilter.brightness = p.brightness.value; applyFilter(); }
-    if (p.saturation){ cssFilter.saturate = p.saturation.value; applyFilter(); }
-    if (p.nebula){ opts.nebula = p.nebula.value/100; nebulaMat.uniforms.uDensity.value = (nebulaMat.userData.density??1)*opts.nebula; refreshSky(); }
-    if (p.showdetails) document.getElementById('meta').hidden = !p.showdetails.value;
-    if (p.showseed) document.getElementById('seed').hidden = !p.showseed.value;
-    if (p.showrarity) document.getElementById('rarity').hidden = !p.showrarity.value;
-    if (p.textsize) document.documentElement.style.setProperty('--ts', p.textsize.value/100);
+    // the settings the website panel has too
+    for (const [wpKey, key, f = v => v] of [['drift','drift'],['speed','speed'],['parallax','parallax'],['brightness','brightness'],
+      ['saturation','saturation'],['nebula','nebula'],['showdetails','showdetails'],['showseed','showseed'],['showrarity','showrarity'],
+      ['textsize','textsize'],['orbitlines','orbitlines'],['bloom','bloom']])
+      if (p[wpKey]) apply(key, f(p[wpKey].value), false);
+    if (p.autoquality || p.quality){
+      const auto = p.autoquality ? p.autoquality.value : settingsAuto;
+      settingsAuto = auto;
+      if (p.quality) lastQuality = p.quality.value;
+      apply('quality', auto ? 'auto' : lastQuality, false);
+    }
     if (p.fade){ fadeSec = p.fade.value; fadeEl.style.transitionDuration = fadeSec+'s'; }
     if (p.tour){ opts.tour = p.tour.value; if (!opts.tour && C.focus) systemView({dur:6}); }
     if (p.tourtime) opts.tourSec = p.tourtime.value;
-    if (p.orbitlines) setOrbitsVisible(p.orbitlines.value);
-    if (p.bloom){ opts.bloom = p.bloom.value/100; bloom.strength = .55*opts.bloom; }
     restartCycle();
   },
-  applyGeneralProperties(p){ if (p.fps!==undefined) wp.fpsLimit = p.fps; },   // Wallpaper Engine's FPS limit
+  applyGeneralProperties(p){ if (p.fps!==undefined) apply('fps', p.fps, false); },   // Wallpaper Engine's FPS limit
 };
+let settingsAuto = false, lastQuality = 100;

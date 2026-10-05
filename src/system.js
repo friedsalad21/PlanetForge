@@ -472,6 +472,7 @@ function lightWorld(w){
     const cu = cl.material.uniforms;
     toLocal(cl, sunW, cu.uSun.value); cu.uSunCol.value.copy(Lt.col); cu.uTime.value = S.fxTime; cu.uSunAng.value = Lt.ang;
     cu.uCloudRot.value = rot;
+    if (cl===w.clouds && w.lightning) cu.uLightning.value = opts.reducedMotion ? 0 : w.lightning;   // no flashing with reduced motion
   }
   const au = w.atmo.material.uniforms;
   toLocal(w.atmo, sunW, au.uSunL.value); camL(w.atmo, au.uCamL.value); au.uSunCol.value.copy(Lt.col);
@@ -518,7 +519,7 @@ export function lightAll(){
   if (S.pulsar){   // the beam sweeping past us: a sharp flash, like a lighthouse
     const ax = S.pulsar.axisWorld(tmp), s = S.stars[0];
     const toCam = tmp2.copy(camera.position).sub(s.mesh.getWorldPosition(wp)).normalize();
-    const f = Math.abs(ax.dot(toCam))**60;
+    const f = opts.reducedMotion ? 0 : Math.abs(ax.dot(toCam))**60;
     s.bright = 1+4*f;
     s.corona.material.opacity = .55+.45*f;
     s.corona.scale.setScalar(40*(1+.6*f));

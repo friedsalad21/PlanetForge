@@ -1,5 +1,6 @@
 {
 	"file" : "index.html",
+	"preview" : "preview.jpg",
 	"title" : "PlanetForge",
 	"type" : "web",
 	"description" : "Procedurally generated planets, star systems and black holes, with a slow tour from body to body. A new world every few minutes.",
@@ -112,6 +113,11 @@
 				"text" : "Text size %",
 				"type" : "slider", "min" : 50, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
+			},
+			"autoquality" : {
+				"order" : 19,
+				"text" : "Automatic quality (lower resolution when the frame rate drops)",
+				"type" : "bool", "value" : false
 			},
 			"quality" : {
 				"order" : 19,

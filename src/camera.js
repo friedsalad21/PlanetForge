@@ -46,6 +46,7 @@ export function flyTo(b, {dur, instant=false} = {}){
     dir1.y = Math.max(dir1.y, .2); dir1.normalize();
   }
   if (C.fly) setFly(false, false);
+  if (opts.reducedMotion) instant = true;   // cut straight there instead of flying
   const travel = target0.distanceTo(end);
   dur ??= THREE.MathUtils.clamp(1.1+.3*Math.abs(Math.log(d1/d0))+.5*Math.min(travel/(d0+d1), 3), 1.2, 4.5);
   C.focus = b;

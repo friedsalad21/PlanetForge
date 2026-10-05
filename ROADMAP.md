@@ -123,12 +123,12 @@ Each level gets its own seed and is only generated when you get close, so the un
 
 ## 10. Quality of life
 
-- [ ] Settings panel on the website (quality, FPS cap, text, motion, same as the wallpaper)
-- [ ] Performance auto-scaling (drop render quality when the frame rate falls)
-- [ ] Screenshot mode: hide all UI, higher-resolution export
-- [ ] Wallpaper thumbnail image (`preview.jpg`) for Wallpaper Engine
-- [ ] Faster first load: compile shaders in the background while showing the loading screen
-- [ ] Accessibility: reduced-motion option, keyboard focus styles, screen-reader text for the current world
+- [x] Settings panel on the website (quality, FPS cap, text, motion, same as the wallpaper)
+- [x] Performance auto-scaling (drop render quality when the frame rate falls)
+- [x] Screenshot mode: hide all UI, higher-resolution export
+- [x] Wallpaper thumbnail image (`preview.jpg`) for Wallpaper Engine
+- [x] Faster first load: compile shaders in the background while showing the loading screen
+- [x] Accessibility: reduced-motion option, keyboard focus styles, screen-reader text for the current world
 
 ---
 
@@ -142,4 +142,4 @@ Each level gets its own seed and is only generated when you get close, so the un
 - [x] Toolbar: back / new / copy link / screenshot / hide text; browser history; keyboard shortcuts
 - [x] Wallpaper Engine support with 25 settings, bundled three.js for offline use
 - [x] Code split into ES modules (`src/`)
-- [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds and phase 6 planet visuals (above)
+- [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds, phase 6 planet visuals and phase 10 quality of life (above)
