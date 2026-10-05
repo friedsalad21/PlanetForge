@@ -41,6 +41,10 @@ export const bodyMat = new THREE.ShaderMaterial({
     }
     return h;
   }
+  float cityLights(vec3 p, float k, float dens){
+    vec3 q=p*k, h=hash3(floor(q)+uSeed.yzx+k), f=fract(q)-.5-(h-.5)*.7;
+    return step(1.-dens,h.x)*exp(-dot(f,f)*30.)*2.6*(.6+.8*h.y);
+  }
   vec3 stormDir(int i, out float sz, out vec3 sh){
     sh=hash3(uSeed+float(i)*7.3); sz=.06+.14*sh.z;
     return normalize(vec3(cos(sh.x*6.283),(sh.y-.5)*1.2,sin(sh.x*6.283)));
@@ -91,12 +95,15 @@ export const bodyMat = new THREE.ShaderMaterial({
         }
       }
     }
-    if(uHex>.5 && p.y>.7){                                                     // Saturn-style polar hexagon
+    if(uHex>.5 && p.y>.6){                                                     // Saturn-style polar hexagon: a subtle jet stream
       float colat=acos(clamp(p.y,-1.,1.)), seg=1.0472, a=lon+uTime*.01;
-      float hr=.3*cos(seg*.5)/cos(mod(a,seg)-seg*.5);
-      col=mix(col,mix(uLow,uRock,.6)*(.85+.15*sin(colat*90.)),(1.-smoothstep(hr-.01,hr+.01,colat))*.8);
-      col=mix(col,uSnow,(1.-smoothstep(.008,.022,abs(colat-hr)))*.85);
-      col=mix(col,uRock*.35,1.-smoothstep(.0,.06,colat));                     // the vortex's dark eye
+      float wob=snoise(vec3(cos(a)*3.,sin(a)*3.,uTime*.02+uSeed.x))*.012;   // its edges wander a little
+      float hr=.3*mix(1.,cos(seg*.5)/cos(mod(a,seg)-seg*.5),.8)+wob;       // slightly rounded corners
+      float inside=1.-smoothstep(hr-.03,hr+.03,colat);
+      col=mix(col,col*vec3(.86,.92,1.04),inside*.6);                       // the cap inside is a touch darker and bluer
+      float jx=(colat-hr)/.02;
+      col=mix(col,mix(col,uHigh,.5)*1.06,exp(-jx*jx)*.4);                  // the jet itself: a pale band, not a line
+      col*=1.-.25*(1.-smoothstep(0.,.035,colat));                          // small polar vortex
     }
     return col;
   }
@@ -203,9 +210,22 @@ export const bodyMat = new THREE.ShaderMaterial({
     c+=ice*day*uSunCol*pow(nh,60.)*.25;                        // icy sheen
     c+=uLava*water*col*1.5;                                    // glowing seas
     c+=uGlow*col*(1.-day)*1.2;                                 // red-hot night side
-    float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45)
-      *smoothstep(-.15,.4,snoise(p*5.+uSeed.zxy));          // cities cluster into regions, with dark land between
-    c+=uCity*lights*vec3(1.,.72,.35)*1.4*(1.-smoothstep(-.2,.05,dot(p,uSun)));   // night-side cities
+    // night-side cities: populated regions (busiest along coasts and lowlands) with bright metro cores, suburbs
+    // that break up into single lights as you zoom in, and lit roads joining them
+    float land=(1.-water)*step(.01,t)*step(t,.45);
+    float region=smoothstep(-.15,.45,snoise(p*5.+uSeed.zxy));
+    float pop=region*(1.+1.5*(1.-smoothstep(0.,.08,t)));
+    float metro=pow(max(snoise(p*24.+uSeed),0.),1.5);
+    // single lights at two scales (towns, then streets); each fades to its average brightness once it's smaller
+    // than a pixel, so the glow stays the same overall but always resolves into points as you zoom in
+    float dens=.25+metro*.6;
+    float n1s=1.-smoothstep(.15,.6,gPx*90.), n2s=1.-smoothstep(.15,.6,gPx*320.);
+    float avg=dens*.26;
+    float grain=mix(avg,mix(cityLights(p,90.,dens),cityLights(p,90.,dens)*.4+cityLights(p,320.,dens)*.6,n2s),n1s);
+    float road=(1.-smoothstep(0.,.02,abs(snoise(p*16.+uSeed.yzx))))*region*.3*(1.-smoothstep(.05,.3,gPx*16.));
+    float lights=land*(pop*(metro*.35+grain*.7)+road);
+    vec3 lightCol=mix(vec3(1.,.66,.3),vec3(1.,.88,.72),metro);                 // city centres burn whiter
+    c+=uCity*lights*lightCol*1.3*(1.-smoothstep(-.2,.05,dot(p,uSun)));
     c+=uVolcCol*glow*(.6+.9*(1.-day));
     gl_FragColor=vec4(c,1.);
     #include <colorspace_fragment>
@@ -233,9 +253,15 @@ export const cloudMat = new THREE.ShaderMaterial({
       shade=uCol;
     } else {
       float c=cloudDensity(p,uSeed);
-      a=smoothstep(uCloud,uCloud+.2,c)*.95;
+      c+=fbm(p*14.+uSeed.yzx+uTime*.02,14.)*.12;          // billowing, eroded edges instead of soft blobs
+      a=smoothstep(uCloud,uCloud+.09,c)*.95;
+      // self-shadowing: where there's more cloud towards the sun, this side of the billow is in its shade
+      vec3 ts=uSun-p*dot(uSun,p); ts*=1./max(length(ts),1e-4);
+      float keep=gPx; gPx*=3.;
+      float cs=cloudDensity(normalize(p+ts*.012),uSeed);
+      gPx=keep;
       float base=max(uCloud,-.5);
-      shade=uCol*(.65+.35*smoothstep(base,base+.7,c));   // thicker cloud is brighter
+      shade=uCol*(.6+.4*smoothstep(base,base+.6,c))*(1.-.35*smoothstep(0.,.25,cs-c));   // thicker cloud is brighter
       if(uLightning>0.){   // lightning: brief flickering flashes deep inside thick storm cells
         vec3 cell=floor(p*28.), hh=hash3(cell);
         float slot=floor(uTime*2.5+hh.x*97.);
@@ -315,17 +341,17 @@ export const atmoMat = new THREE.ShaderMaterial({
 // --- auroras: glowing ovals around the magnetic poles, only visible on the night side ---
 export const auroraMat = new THREE.ShaderMaterial({
   transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-  uniforms:{ uSunL:v3(), uCamL:v3(), uMag:v3(), uA:col3(), uB:col3(), uTime:num(0), uStr:num(1) },
+  uniforms:{ uSunL:v3(), uCamL:v3(), uMag:v3(), uA:col3(), uB:col3(), uTime:num(0), uStr:num(1), uOval:num(.33) },
   vertexShader: VERT,
-  fragmentShader: NOISE + `uniform vec3 uSunL,uCamL,uMag,uA,uB; uniform float uTime,uStr; varying vec3 vPos;
+  fragmentShader: NOISE + `uniform vec3 uSunL,uCamL,uMag,uA,uB; uniform float uTime,uStr,uOval; varying vec3 vPos;
   void main(){
     vec3 p=normalize(vPos);
     float m=dot(p,uMag), colat=acos(clamp(abs(m),0.,1.));         // angle from the nearer magnetic pole
     vec3 e1=normalize(cross(uMag,vec3(.3,.1,1.))), e2=cross(uMag,e1);
     float lon=atan(dot(p,e2),dot(p,e1));
     float wig=snoise(vec3(cos(lon),sin(lon),sign(m))*1.5+uTime*.05)*.05;
-    float x=colat-.33-wig;
-    float band=exp(-x*x/.0018);
+    float x=colat-uOval-wig;
+    float band=exp(-x*x/.0008);                                       // a thin ring, not a thick band
     float curtain=.5+.5*snoise(vec3(cos(lon)*9.,sin(lon)*9.,uTime*.25+sign(m)*7.));
     float rays=.6+.4*snoise(vec3(cos(lon)*60.,sin(lon)*60.,uTime*.6));
     float night=1.-smoothstep(-.15,.12,dot(p,uSunL));
@@ -349,8 +375,8 @@ export const ringMat = new THREE.ShaderMaterial({
   // ringlets all the way down: octaves of 1D noise until they'd be thinner than a pixel
   float ringlets(float x, float px){
     float s=0., a=.5, norm=0.;
-    for(int i=0;i<10;i++){
-      float w=1.-smoothstep(.25,.5,px);
+    for(int i=0;i<12;i++){
+      float w=1.-smoothstep(.35,.75,px);                        // keep fine ringlets even at grazing angles
       if(w<=0.) break;
       s+=a*w*n1(x); norm+=a*w; x=x*2.13+5.7; px*=2.13; a*=.6;
     }
@@ -359,7 +385,7 @@ export const ringMat = new THREE.ShaderMaterial({
   void main(){
     float t=(length(vP.xy)-uIn)/(uOut-uIn), ft=fwidth(t);
     float b=ringBands(t,uK);                                    // main band structure
-    b*=1.+(ringlets(t*uK.x*5.,ft*uK.x*5.)-.5)*.7;              // fine ringlets, sharper as you zoom in
+    b*=1.+(ringlets(t*uK.x*5.,ft*uK.x*5.)-.5)*.9;              // fine ringlets, sharper as you zoom in
     // up close: grainy ice-particle sparkle in the ring plane
     float k=600., grain=fract(sin(dot(floor(vP.xy*k),vec2(12.9898,78.233)))*43758.5);
     b*=1.+(grain-.5)*.5*(1.-smoothstep(.3,.8,length(fwidth(vP.xy))*k));
@@ -367,7 +393,9 @@ export const ringMat = new THREE.ShaderMaterial({
     float shadow=(dot(vP,uSunL)<0. && length(cross(vP,uSunL))<1.)?.08:1.;   // planet's shadow on the ring
     // seen from the sunlit face the ring reflects; from the dark face only thin parts glow with light passing through
     float sideS=uSunL.z, sideV=uCamL.z;
-    float light=sideS*sideV>0. ? .75+.5*abs(sideS) : .3+.6*(1.-a);
+    // looking towards the sun through the ring, thin parts light up (sunlight scattered forwards by the ice)
+    float fwd=pow(max(dot(normalize(vP-uCamL),uSunL),0.),6.);
+    float light=sideS*sideV>0. ? .75+.5*abs(sideS) : .14+(1.-a)*(.35+1.8*fwd);
     vec3 col=mix(uA,uB,b)*mix(.8,1.2,n1(t*uK.z*2.+4.));        // slight colour drift across the rings
     gl_FragColor=vec4(col*uSunCol*light*(.05+.95*shadow),a);
     #include <colorspace_fragment>

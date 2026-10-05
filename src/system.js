@@ -118,7 +118,7 @@ function buildPlanet(r, x, pick){
   if (k.locked) S.bits.push('tidally locked');
   if (k.city) S.bits.push('inhabited');
   if (w.station) S.bits.push(w.station.derelict ? 'a derelict station in orbit' : 'a space station in orbit');
-  S.bits.push(S.rogue ? 'a rogue planet, drifting between the stars' : 'orbiting a '+St.name);
+  S.bits.push(S.rogue ? 'a rogue planet, drifting between the stars' : `orbiting ${/^[aeiou]/i.test(St.name) ? 'an' : 'a'} ${St.name}`);
   S.finds.push(['planet', .7], S.rogue ? ['rogue', .04] : [kn, KIND_POOL.filter(n => n===kn).length/KIND_POOL.length]);
   worldFinds(w, 1);
   return w.reach;
@@ -568,6 +568,10 @@ export function updateLOD(){
       b.moon.mesh.visible = px > .6;
       if (px < 1.5 && b.world.group.visible) add(bodyPos(b, wp), b.moon.k.low, 2, Math.min(1, px*4)*.7);
     }
+  }
+  if (S.belt){   // asteroid rocks only when you're near the belt; from further out it's a haze of dots
+    const {radius, width, rocks} = S.belt.userData, l = S.belt.worldToLocal(wp.copy(camera.position));
+    rocks.visible = Math.hypot(Math.hypot(l.x, l.z)-radius, l.y) < width+2.5;
   }
   P.needsUpdate = C.needsUpdate = Z.needsUpdate = true;
   dotGeo.setDrawRange(0, n);

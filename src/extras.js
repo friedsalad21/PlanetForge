@@ -104,15 +104,41 @@ export function makeDyson(x, R){
   return { group, shell, update(dt){ for (const r of rings) r.ring.rotation.y += dt*r.speed; } };
 }
 
+// --- rocks: lumpy, cratered, a little squashed; shared by asteroid belts and comet nuclei ---
+const waves = (seed, n) => Array.from({length:n}, (_, i) => {   // a few random sine waves = smooth noise
+  const r = k => { const v = Math.sin(seed*91.7+i*13.1+k*7.3)*43758.5; return v-Math.floor(v); };
+  return {d:new THREE.Vector3(r(1)-.5, r(2)-.5, r(3)-.5).normalize(), f:1+r(4)*(i<4 ? 1.5 : 6), ph:r(5)*6.28, a:i<4 ? .14 : .04};
+});
+export function rockGeometry(seed){
+  const g = new THREE.SphereGeometry(1, 32, 20), p = g.attributes.position, v = new THREE.Vector3();
+  const W = waves(seed, 12), craters = Array.from({length:7}, (_, i) => {
+    const r = k => { const q = Math.sin(seed*17.3+i*31.7+k*5.1)*24634.6; return q-Math.floor(q); };
+    return {c:new THREE.Vector3(r(1)-.5, r(2)-.5, r(3)-.5).normalize(), R:.2+r(4)*.35};
+  });
+  const col = new Float32Array(p.count*3), sq = [1, .65+(Math.sin(seed*3.1)*.5+.5)*.35, .55+(Math.sin(seed*5.7)*.5+.5)*.4];
+  for (let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i);
+    let h = 1;
+    for (const w of W) h += w.a*Math.sin(v.dot(w.d)*w.f*3+w.ph);
+    for (const cr of craters){   // bowl with a raised rim
+      const d = v.distanceTo(cr.c)/cr.R;
+      if (d < 1.3) h += d < 1 ? -.12*cr.R*(1-d*d) : .05*cr.R*Math.sin((d-1)/.3*Math.PI);
+    }
+    v.multiplyScalar(h);
+    p.setXYZ(i, v.x*sq[0], v.y*sq[1], v.z*sq[2]);
+    const shade = .75+.25*Math.sin(v.x*4+seed)*Math.sin(v.y*3.3+seed*2);
+    col.set([shade, shade*.97, shade*.93], i*3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+const ROCKS = Array.from({length:6}, (_, i) => rockGeometry(i*1.618+.3));
+
 // --- comets ---
 export function makeComet(x, orbit){
   const group = new THREE.Group();
-  const nucleus = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), std(0x4a4440, {metalness:0, roughness:.95}));
-  { // lumpy potato shape
-    const p = nucleus.geometry.attributes.position, v = new THREE.Vector3(), o = [x(),x(),x()].map(k=>k*9);
-    for (let i=0;i<p.count;i++){ v.fromBufferAttribute(p,i); v.multiplyScalar(1+.25*Math.sin(v.x*3+o[0])*Math.sin(v.y*2+o[1])+.15*Math.sin(v.z*4+o[2])); p.setXYZ(i,v.x,v.y*.75,v.z); }
-    nucleus.geometry.computeVertexNormals();
-  }
+  const nucleus = new THREE.Mesh(rockGeometry(x()*100), std(0x4a4440, {metalness:0, roughness:.95, vertexColors:true}));
   nucleus.scale.setScalar(.012);
   const coma = new THREE.Sprite(new THREE.SpriteMaterial({map:SOFT_TEX, color:new THREE.Color(.7,.95,1), blending:THREE.AdditiveBlending, depthWrite:false}));
   const N = 16000, aP = new Float32Array(N*4);
@@ -150,8 +176,32 @@ export function makeBelt(r, radius, width){
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos,3));
   const icy = r()<.35;
-  return new THREE.Points(g, new THREE.PointsMaterial({size:.022, sizeAttenuation:true, transparent:true, depthWrite:false,
-    map:ROUND_TEX, color:icy ? new THREE.Color().setHSL(.58,.25,.8,THREE.SRGBColorSpace) : new THREE.Color().setHSL(.07,.2,.5,THREE.SRGBColorSpace)}));
+  const color = icy ? new THREE.Color().setHSL(.58,.25,.8,THREE.SRGBColorSpace) : new THREE.Color().setHSL(.07,.2,.5,THREE.SRGBColorSpace);
+  const group = new THREE.Group();
+  // far away: soft dots
+  const dots = new THREE.Points(g, new THREE.PointsMaterial({size:.022, sizeAttenuation:true, transparent:true, depthWrite:false, map:ROUND_TEX, color}));
+  // up close: real rocks of all sizes (lots of small ones, a few big ones), tumbling slowly
+  const rocks = new THREE.Group(), mat = std(color.clone().multiplyScalar(.55), {metalness:.05, roughness:.95, vertexColors:true});
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+  let k = 0;
+  const per = Math.ceil(N/ROCKS.length);
+  for (const geo of ROCKS){
+    const mesh = new THREE.InstancedMesh(geo, mat, per);
+    let j = 0;
+    for (; j<per && k<N; j++, k++){
+      const h = Math.sin(k*12.9898)*43758.5, f = h-Math.floor(h);
+      p.fromArray(pos, k*3);
+      q.setFromEuler(e.set(f*6.3, f*17.1, f*29.7));
+      sc.setScalar(.003+f**3*.028);
+      mesh.setMatrixAt(j, m4.compose(p, q, sc));
+    }
+    mesh.count = j;
+    rocks.add(mesh);
+  }
+  rocks.visible = false;
+  group.add(dots, rocks);
+  group.userData = {radius, width, rocks};
+  return group;
 }
 
 // --- glowing shells of gas ---

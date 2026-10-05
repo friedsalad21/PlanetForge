@@ -167,6 +167,26 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
   if (!k.locked && x() < .08){ spin = -spin; w.retro = true; }   // spins backwards
   w.spin = spin;
   bu.uSeason.value = 1;
+  if (kindName==='Crystal'){   // crystal worlds come in very different styles, not just different colours
+    const v = Math.floor(x()*4), h = x(), set = (u, col) => bu['u'+u].value.copy(col);
+    if (v===0){        // prismatic: every height a different hue
+      set('Sand', c(h+.5,.6,.5)); set('Low', c(h,.75,.55)); set('Low2', c(h+.33,.75,.55));
+      set('High', c(h+.66,.7,.62)); set('Rock', c(h+.15,.6,.78)); bu.uMoist.value = 1;
+    } else if (v===1){ // geodes: dark rock split by glowing crystal ridges
+      set('Sand', c(h,.15,.1)); set('Low', c(h,.12,.14)); set('Low2', c(h+.05,.15,.18));
+      set('High', c(h,.8,.5)); set('Rock', c(h+.05,.9,.7)); bu.uRidge.value = 1; bu.uGlow.value = .6;
+    } else if (v===2){ // glass seas: crystal shores around mirror-smooth liquid
+      bu.uSea.value = .02+x()*.12; set('Deep', c(h+.5,.7,.14)); set('Shallow', c(h+.5,.6,.45));
+    } else {           // ice-crystal spires: pale, sharp and high
+      set('Sand', c(.55,.2,.75)); set('Low', c(.55,.25,.85)); set('Low2', c(.5,.3,.8));
+      set('High', c(.58,.35,.92)); set('Rock', c(.6,.5,.7)); set('Snow', c(.55,.1,.98));
+      bu.uRidge.value = 1; bu.uIce.value = .6+x()*.2;
+    }
+    bu.uFreq.value *= .7+x()*.8;
+    bu.uTerrace.value = x()<.4 ? .5+x()*.5 : 0;
+    bu.uWarp.value = x()*.5;
+    w.features.push(['prismatic crystal','geodes','glass seas','ice-crystal spires'][v]);
+  }
   if (WET.has(kindName) && x() < .85){ bu.uRivers.value = 1; w.features.push('rivers'); }
   if (STORMY.has(kindName) && clouds.visible && x() < .6){ w.lightning = cu.uLightning.value = .7+x()*.6; w.features.push('lightning storms'); }
   if (k.gas){
@@ -196,11 +216,16 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
     w.aurora = new THREE.Mesh(LOD.shell[1], clone(auroraMat));
     w.aurora.scale.setScalar(k.gas ? 1.015 : 1.035); w.aurora.renderOrder = 2;
     const ru = w.aurora.material.uniforms;
-    ru.uMag.value.set((x()-.5)*.35, 1, (x()-.5)*.35).normalize();   // magnetic poles sit a little off the spin axis
+    // magnetic poles usually sit a little off the spin axis; ice giants (like Uranus and Neptune) and the odd
+    // other world have fields tipped right over, so their auroras turn up far from the poles
+    const tipped = kindName==='Ice giant' ? x() < .7 : x() < .08;
+    const mt = tipped ? .7+x()*.4 : x()*.2, ma = x()*Math.PI*2;
+    ru.uMag.value.set(Math.sin(mt)*Math.cos(ma), Math.cos(mt), Math.sin(mt)*Math.sin(ma));
+    ru.uOval.value = .22+x()*.22;   // how far the ring sits from the magnetic pole (bigger in a solar storm)
     const alien = kindName==='Alien' || k.gas;
     const h = alien ? x() : .36;
     ru.uA.value.copy(c(h, .9, .55)); ru.uB.value.copy(alien ? c(h+.15, .8, .6) : c(.97, .8, .55));
-    ru.uStr.value = .6+x()*.6;
+    ru.uStr.value = .35+x()*.4;
     axis.add(w.aurora);
     w.features.push('auroras');
   }
