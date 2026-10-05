@@ -17,25 +17,25 @@ Each level gets its own seed and is only generated when you get close, so the un
 
 ## 1. Free movement (do first: everything else builds on it)
 
-- [ ] Click any planet, moon or star to fly smoothly to it and orbit around it
-- [ ] Free-fly mode: WASD + mouse look, Shift to boost, Q/E to roll
-- [ ] Smooth camera transitions (ease in and out, no jumps)
-- [ ] "Return to system view" button / key
-- [ ] Floating origin: keep the camera near (0,0,0) and move the world instead, so there's no jitter at huge distances
-- [ ] Level of detail by distance: full planet → simple sphere → dot → nothing
-- [ ] Touch controls for free-fly on phones (virtual stick)
-- [ ] Wallpaper mode: a slow cinematic tour that drifts from body to body
+- [x] Click any planet, moon or star to fly smoothly to it and orbit around it
+- [x] Free-fly mode: WASD + mouse look, Shift to boost, Q/E to roll
+- [x] Smooth camera transitions (ease in and out, no jumps)
+- [x] "Return to system view" button / key
+- [x] Floating origin: keep the camera near (0,0,0) and move the world instead, so there's no jitter at huge distances
+- [x] Level of detail by distance: full planet → simple sphere → dot → nothing
+- [x] Touch controls for free-fly on phones (virtual stick)
+- [x] Wallpaper mode: a slow cinematic tour that drifts from body to body
 
 ## 2. Real orbits (Kepler "on-rails")
 
-- [ ] Elliptical orbits with eccentricity, inclination and a random starting angle
-- [ ] Speeds from Kepler's laws (inner planets fast, outer slow)
-- [ ] Moons orbit their planet while it orbits the star (already nested; make it Kepler-correct)
-- [ ] Binary stars orbit their shared centre of mass on ellipses
-- [ ] Optional orbit lines (faint ellipses) with a toggle
-- [ ] Tidally locked worlds really face their star as they orbit
-- [ ] Day length and axial tilt per planet; seasons visible on the ice caps
-- [ ] Time controls: pause, slow motion, fast-forward
+- [x] Elliptical orbits with eccentricity, inclination and a random starting angle
+- [x] Speeds from Kepler's laws (inner planets fast, outer slow; star masses are compressed so systems stay watchable)
+- [x] Moons orbit their planet while it orbits the star (already nested; make it Kepler-correct)
+- [x] Binary stars orbit their shared centre of mass on ellipses
+- [x] Optional orbit lines (faint ellipses) with a toggle
+- [x] Tidally locked worlds really face their star as they orbit
+- [x] Day length and axial tilt per planet; seasons visible on the ice caps (in star systems: a lone planet's sun doesn't move)
+- [x] Time controls: pause, slow motion, fast-forward
 
 ## 3. Real gravity simulation (toggle)
 
@@ -63,30 +63,30 @@ Each level gets its own seed and is only generated when you get close, so the un
 
 ## 5. More to discover
 
-- [ ] More star types: Wolf-Rayet, variable/pulsing stars, protostars in nebulae
-- [ ] Neutron star / pulsar visuals done properly (subtle, not the old beams)
-- [ ] Trinary and wide-binary systems; circumbinary planets
-- [ ] Rogue planets drifting between stars
-- [ ] Comets with tails that point away from the star
-- [ ] Planetary nebulae and supernova remnants
-- [ ] Dyson spheres / megastructures as rare finds
-- [ ] Space stations and derelicts as very rare finds
-- [ ] Rings on more objects (moons with rings, ringed ice giants with tilted rings)
-- [ ] Shepherd moons inside ring gaps
-- [ ] Rarity tiers so some finds feel special ("1 in 10,000 worlds")
+- [x] More star types: Wolf-Rayet, variable/pulsing stars, protostars in nebulae
+- [x] Neutron star / pulsar visuals done properly (subtle, not the old beams)
+- [x] Trinary and wide-binary systems; circumbinary planets
+- [x] Rogue planets drifting between stars (lit only by starlight and their own heat)
+- [x] Comets with tails that point away from the star
+- [x] Planetary nebulae and supernova remnants
+- [x] Dyson spheres / megastructures as rare finds
+- [x] Space stations and derelicts as very rare finds
+- [x] Rings on more objects (moons with rings, ringed ice giants with tilted rings)
+- [x] Shepherd moons inside ring gaps
+- [x] Rarity tiers so some finds feel special ("1 in 10,000 worlds")
 
 ## 6. Planet visuals
 
-- [ ] Rivers and lakes that follow the terrain
-- [ ] Volcano glow and ash plumes on volcanic worlds
-- [ ] Auroras near the poles on the night side
-- [ ] Lightning flashes inside storm clouds
-- [ ] Moon shadows on planets (eclipses) and planet shadows on moons
-- [ ] Atmosphere scattering done properly (blue limb, orange sunset band at the terminator)
-- [ ] Bloom / glow post-processing for stars, lava and city lights
-- [ ] Cloud layers with depth (two layers, parallax)
-- [ ] Gas giants with polar hexagons and more storm types
-- [ ] Better black holes: gravitational lensing of the background stars
+- [x] Rivers and lakes that follow the terrain (they wind through the wet lowlands and thin out uphill; not a real flow simulation yet)
+- [x] Volcano glow and ash plumes on volcanic worlds
+- [x] Auroras near the poles on the night side
+- [x] Lightning flashes inside storm clouds
+- [x] Moon shadows on planets (eclipses) and planet shadows on moons
+- [x] Atmosphere scattering done properly (blue limb, orange sunset band at the terminator)
+- [x] Bloom / glow post-processing for stars, lava and city lights
+- [x] Cloud layers with depth (two layers, parallax)
+- [x] Gas giants with polar hexagons and more storm types
+- [x] Better black holes: gravitational lensing of the background stars
 
 ## 7. Spaceship and landing (the big ones)
 
@@ -132,4 +132,6 @@ Each level gets its own seed and is only generated when you get close, so the un
 - [x] Cratered moons; star systems with 9 star types, binaries and asteroid belts; black holes with accretion disks
 - [x] Every planet in a star system is a full world with its own clouds, rings and moons
 - [x] Toolbar: back / new / copy link / screenshot / hide text; browser history; keyboard shortcuts
-- [x] Wallpaper Engine support with 20 settings, bundled three.js for offline use
+- [x] Wallpaper Engine support with 25 settings, bundled three.js for offline use
+- [x] Code split into ES modules (`src/`)
+- [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds and phase 6 planet visuals (above)

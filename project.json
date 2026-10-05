@@ -2,7 +2,7 @@
 	"file" : "index.html",
 	"title" : "PlanetForge",
 	"type" : "web",
-	"description" : "Procedurally generated planets, star systems and black holes. A new world every few minutes.",
+	"description" : "Procedurally generated planets, star systems and black holes, with a slow tour from body to body. A new world every few minutes.",
 	"general" : {
 		"supportsaudioprocessing" : false,
 		"properties" : {
@@ -118,6 +118,33 @@
 				"text" : "Render quality % (lower = less GPU)",
 				"type" : "slider", "min" : 25, "max" : 100, "step" : 5, "fraction" : false,
 				"value" : 100
+			},
+			"tour" : {
+				"order" : 20,
+				"text" : "Tour: fly from body to body",
+				"type" : "bool", "value" : true
+			},
+			"tourtime" : {
+				"order" : 21,
+				"text" : "Tour: seconds at each stop",
+				"type" : "slider", "min" : 10, "max" : 180, "step" : 5, "fraction" : false,
+				"value" : 30
+			},
+			"orbitlines" : {
+				"order" : 22,
+				"text" : "Show orbit lines",
+				"type" : "bool", "value" : false
+			},
+			"bloom" : {
+				"order" : 23,
+				"text" : "Glow (bloom) %",
+				"type" : "slider", "min" : 0, "max" : 200, "step" : 5, "fraction" : false,
+				"value" : 100
+			},
+			"showrarity" : {
+				"order" : 24,
+				"text" : "Show rarity of rare finds",
+				"type" : "bool", "value" : true
 			}
 		}
 	}

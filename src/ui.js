@@ -23,7 +23,7 @@ export function showInfo(b, why){
   metaEl.textContent = (b ? bodyInfo(b) : S.bits).join(' · ');
   seedEl.textContent = 'seed '+S.seed+(b ? ` · in ${S.sysName}` : '');
   const R = S.rarity;
-  rarityEl.textContent = R && !b ? `◆ ${R.tier} find · about 1 in ${R.n.toLocaleString('en')} worlds` : '';
+  rarityEl.textContent = R?.tier && !b ? `◆ ${R.tier} find · a 1 in ${R.n.toLocaleString('en')} combination` : '';
   rarityEl.dataset.tier = R?.tier ?? '';
   hintEl.textContent = b ? 'click empty space or Esc to zoom back out · drag to look around · ? for help'
     : 'click a planet, moon or star to fly to it · click empty space for a new world · ? for help';
@@ -138,7 +138,7 @@ for (const [id, fn] of [['prev',()=>history.back()],['next',()=>newWorld()],['sy
 
 const FLY_KEYS = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyC','ShiftLeft','ShiftRight','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
 addEventListener('keydown', e=>{
-  if (flags.wallpaper || e.ctrlKey || e.metaKey || e.altKey || e.target.tagName==='BUTTON' && (e.code==='Space' || e.code==='Enter')) return;
+  if (flags.wallpaper || e.ctrlKey || e.metaKey || e.altKey || e.target.tagName==='BUTTON' && ['Space','Enter','Tab'].includes(e.code)) return;
   if (C.fly && FLY_KEYS.has(e.code)){
     keys.add(e.code === 'ArrowLeft' ? 'KeyA' : e.code === 'ArrowRight' ? 'KeyD' : e.code);
     e.preventDefault(); return;

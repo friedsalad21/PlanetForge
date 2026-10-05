@@ -82,7 +82,7 @@ export function makeDyson(x, R){
     }
   } else {
     // geodesic shell, roughly half the panels in place, with glowing seams
-    const ico = new THREE.IcosahedronGeometry(R, 4).toNonIndexed(), src = ico.attributes.position.array, keep = [];
+    const ico = new THREE.IcosahedronGeometry(R, 4), src = ico.attributes.position.array, keep = [];
     const a = new THREE.Vector3(), b = new THREE.Vector3(), cc = new THREE.Vector3(), cen = new THREE.Vector3();
     const band = x()*Math.PI*2;
     for (let i=0;i<src.length;i+=9){
@@ -115,7 +115,7 @@ export function makeComet(x, orbit){
   }
   nucleus.scale.setScalar(.012);
   const coma = new THREE.Sprite(new THREE.SpriteMaterial({map:SOFT_TEX, color:new THREE.Color(.7,.95,1), blending:THREE.AdditiveBlending, depthWrite:false}));
-  const N = 4000, aP = new Float32Array(N*4);
+  const N = 16000, aP = new Float32Array(N*4);
   for (let i=0;i<N;i++) aP.set([Math.random()**.8, Math.random()*Math.PI*2, Math.sqrt(Math.random()), Math.random()], i*4);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N*3),3));
@@ -123,7 +123,7 @@ export function makeComet(x, orbit){
   const tail = new THREE.Points(g, cometMat.clone());
   tail.frustumCulled = false;
   const u = tail.material.uniforms;
-  u.uScale = pxScale; u.uSize.value = .02;
+  u.uScale = pxScale; u.uSize.value = .022;
   u.uDust.value.copy(new THREE.Color(1,.85,.6)); u.uIon.value.copy(new THREE.Color(.45,.7,1.3));
   group.add(nucleus, coma, tail);
   const q = orbit.periapsis, back = new THREE.Vector3();
@@ -134,8 +134,8 @@ export function makeComet(x, orbit){
     const act = Math.min(1.4, (q*1.8/d)**2);                         // the tail grows near the star
     u.uAnti.value.copy(anti); u.uBack.value.copy(orbit.dirAt(t, back)).negate();
     u.uLen.value = .25+2.2*act; u.uAct.value = Math.min(1, act*1.5); u.uTime.value = t;
-    coma.scale.setScalar(.06+.35*act);
-    coma.material.opacity = .25+.6*Math.min(1,act);
+    coma.scale.setScalar(.03+.16*act);
+    coma.material.opacity = .2+.45*Math.min(1,act);
     nucleus.rotation.y += .01;
   }};
 }

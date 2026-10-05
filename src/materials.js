@@ -172,9 +172,13 @@ export const bodyMat = new THREE.ShaderMaterial({
       col=mix(col,snowCol,ice); water*=1.-ice; t+=ice;
       for(int i=0;i<6;i++){                        // volcanoes: glowing calderas and lava running down the flanks
         if(float(i)>=uVolcN) break;
-        float d=length(p-uVolc[i].xyz)/abs(uVolc[i].w);
-        float flow=pow(1.-abs(snoise(p*40.+uSeed+float(i)*3.1)),9.)*(1.-smoothstep(.15,1.3,d));
-        glow+=(exp(-d*d*22.)*2.2+exp(-d*d*5.)*.15+flow*1.4)*(uVolc[i].w>0.?1.:.2);
+        vec3 vd=uVolc[i].xyz, a1=normalize(cross(vd,vec3(.3,1.,.1))), a2=cross(vd,a1), dp=p-vd;
+        float d=length(dp)/abs(uVolc[i].w), ang=atan(dot(dp,a2),dot(dp,a1));
+        // lava channels run straight down the flanks, wandering a little, fading as they cool
+        float flow=pow(1.-abs(snoise(vec3(cos(ang)*5.,sin(ang)*5.,d*1.2+float(i)*7.)+snoise(p*30.+uSeed)*.15)),14.)
+          *smoothstep(.12,.3,d)*(1.-smoothstep(.4,1.4,d));
+        float rim=exp(-pow((d-.16)/.05,2.));                                // glowing lip of the caldera
+        glow+=(exp(-d*d*60.)*2.5+rim*1.2+exp(-d*d*5.)*.12+flow*1.6)*(uVolc[i].w>0.?1.:.2);
         col=mix(col,uRock*.35,exp(-d*d*12.)*.6);   // dark fresh basalt around the vent
       }
       glow*=1.-ice;
@@ -199,7 +203,8 @@ export const bodyMat = new THREE.ShaderMaterial({
     c+=ice*day*uSunCol*pow(nh,60.)*.25;                        // icy sheen
     c+=uLava*water*col*1.5;                                    // glowing seas
     c+=uGlow*col*(1.-day)*1.2;                                 // red-hot night side
-    float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45);
+    float lights=step(.55,snoise(p*70.+uSeed))*(1.-water)*step(.01,t)*step(t,.45)
+      *smoothstep(-.15,.4,snoise(p*5.+uSeed.zxy));          // cities cluster into regions, with dark land between
     c+=uCity*lights*vec3(1.,.72,.35)*1.4*(1.-smoothstep(-.2,.05,dot(p,uSun)));   // night-side cities
     c+=uVolcCol*glow*(.6+.9*(1.-day));
     gl_FragColor=vec4(c,1.);
@@ -255,7 +260,7 @@ export const cloudMat = new THREE.ShaderMaterial({
     }
     shade=mix(shade,vec3(.16,.14,.13),ash); a=max(a,ash*.92);
     float lit=(1.-ringShadow(p,uSun)*.85)*eclipse(p,uSun);
-    gl_FragColor=vec4(shade*(.006+smoothstep(-.15,1.,dot(p,uSun))*uSunCol*lit)+vec3(.75,.82,1.)*flash*4.,max(a,flash*.6));
+    gl_FragColor=vec4(shade*(.006+smoothstep(-.15,1.,dot(p,uSun))*uSunCol*lit)+vec3(.75,.82,1.)*flash*6.,max(a,flash*.6));
     #include <colorspace_fragment>
   }`,
 });
@@ -505,14 +510,14 @@ export const cometMat = new THREE.ShaderMaterial({
     vec3 p=uAnti*len+off+(ion>.5?vec3(0.):uBack*uLen*.45*s*s);       // dust lags behind and curves
     p+=uAnti*fract(uTime*.05+aP.w*7.)*.02*uLen*ion;                  // ion streamers flow outwards
     vCol=ion>.5?uIon:uDust;
-    vA=(1.-s)*(1.-s)*uAct*(ion>.5?.5:.35);
+    vA=(1.-s)*(1.-s)*uAct*(ion>.5?.07:.045);
     vec4 mv=modelViewMatrix*vec4(p,1.);
-    gl_PointSize=clamp(uScale*uSize*(1.+s*4.)/-mv.z,1.,24.);
+    gl_PointSize=clamp(uScale*uSize*(1.+s*5.)/-mv.z,1.5,48.);
     gl_Position=projectionMatrix*mv;
   }`,
   fragmentShader:`varying vec3 vCol; varying float vA;
   void main(){
-    float m=exp(-dot(gl_PointCoord-.5,gl_PointCoord-.5)*14.);
+    float m=exp(-dot(gl_PointCoord-.5,gl_PointCoord-.5)*10.);
     gl_FragColor=vec4(vCol*vA*m,1.);
     #include <colorspace_fragment>
   }`,

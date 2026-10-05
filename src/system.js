@@ -386,9 +386,11 @@ export function bodyInfo(b){
 function rarity(finds){
   // multiply the (conditional) chances of everything uncommon here
   const n = Math.round(1/finds.filter(f => f[1] < .5).reduce((a,f) => a*f[1], 1));
-  const tiers = [[60,null],[500,'Uncommon'],[5000,'Rare'],[50000,'Epic'],[Infinity,'Legendary']];
+  // thresholds measured over thousands of seeds: about 1 world in 10 is Uncommon or better, 1 in 50 Rare,
+  // 1 in 300 Epic and 1 in 2000 Legendary
+  const tiers = [[250,null],[1400,'Uncommon'],[10000,'Rare'],[50000,'Epic'],[Infinity,'Legendary']];
   const tier = tiers.find(t => n < t[0])[1];
-  return tier ? {tier, n} : null;
+  return {tier, n};
 }
 
 // ---------------------------------------------------------------------------------------------------
