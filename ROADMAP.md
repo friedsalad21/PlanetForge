@@ -15,11 +15,11 @@ Each level gets its own seed and is only generated when you get close, so the un
 
 ---
 
-## To review (decide after playing with it)
+## To review (only when asked: Sean is still testing these)
 
-- [ ] Pulsar beams: probably remove them, keep only the flash as the beam sweeps past
+- [ ] Pulsar beams: remove completely, including the flash as the beam sweeps past
 - [ ] Black hole camera limit: zooming out stops at 40 units because the bent-light (lensing) effect is only drawn inside a sphere 50 units across; make it work at any distance and remove the limit
-- [ ] Black hole warping (the stars around it stretched into arcs): maybe tone it down or remove it
+- [ ] Black hole warping (the stars around it stretched into arcs): remove completely
 
 ---
 
