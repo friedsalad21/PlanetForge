@@ -132,7 +132,7 @@ export const bodyMat = new THREE.ShaderMaterial({
       // snow/ice texture: drifts and blue-grey tones, plus thin pressure cracks once they're big enough to see
       float iceN=fbm(p*12.+uSeed.zyx,12.);
       vec3 snowCol=mix(uSnow,uSnow*vec3(.8,.89,1.),smoothstep(-.1,.5,iceN));
-      float crack=pow(1.-abs(snoise(p*35.+uSeed)),14.)*(1.-smoothstep(.2,.5,gPx*35.));
+      float crack=pow(max(1.-abs(snoise(p*35.+uSeed)),0.),14.)*(1.-smoothstep(.2,.5,gPx*35.));
       snowCol*=1.-crack*.4;
       float slope=1.-dot(n,p);                     // 0 on flat ground
       float moist=snoise(p*2.3+uSeed.yxz)*.65+snoise(p*6.+uSeed)*.35;   // biome patches: wet vs dry lowland
@@ -175,9 +175,9 @@ export const bodyMat = new THREE.ShaderMaterial({
         vec3 vd=uVolc[i].xyz, a1=normalize(cross(vd,vec3(.3,1.,.1))), a2=cross(vd,a1), dp=p-vd;
         float d=length(dp)/abs(uVolc[i].w), ang=atan(dot(dp,a2),dot(dp,a1));
         // lava channels run straight down the flanks, wandering a little, fading as they cool
-        float flow=pow(1.-abs(snoise(vec3(cos(ang)*5.,sin(ang)*5.,d*1.2+float(i)*7.)+snoise(p*30.+uSeed)*.15)),14.)
+        float flow=pow(max(1.-abs(snoise(vec3(cos(ang)*5.,sin(ang)*5.,d*1.2+float(i)*7.)+snoise(p*30.+uSeed)*.15)),0.),14.)
           *smoothstep(.12,.3,d)*(1.-smoothstep(.4,1.4,d));
-        float rim=exp(-pow((d-.16)/.05,2.));                                // glowing lip of the caldera
+        float rd=(d-.16)/.05, rim=exp(-rd*rd);                                // glowing lip of the caldera
         glow+=(exp(-d*d*60.)*2.5+rim*1.2+exp(-d*d*5.)*.12+flow*1.6)*(uVolc[i].w>0.?1.:.2);
         col=mix(col,uRock*.35,exp(-d*d*12.)*.6);   // dark fresh basalt around the vent
       }
@@ -452,7 +452,7 @@ export const shellMat = new THREE.ShaderMaterial({
     q+=.6*vec3(snoise(q*.5+1.),snoise(q*.5+4.),snoise(q*.5+7.));      // stir it so it doesn't look like plain noise
     float f=fbm(q,uFreq)*.5+.5;
     float clump=smoothstep(.42,.8,f);                                  // clumpy gas
-    float fil=pow(1.-abs(snoise(q*2.7)),16.)*clump*uFil;               // thin wisps where the gas is thick
+    float fil=pow(max(1.-abs(snoise(q*2.7)),0.),16.)*clump*uFil;               // thin wisps where the gas is thick
     float waist=mix(1.,exp(-n.y*n.y*9.)*1.4+.15,uWaist);            // planetary nebulae: bright equatorial ring
     vec3 col=mix(uA,uB,smoothstep(.4,.7,f))*(clump*.35+fil*1.3)*waist*limb*uStr*.07*inside;
     gl_FragColor=vec4(col,1.);

@@ -5,6 +5,7 @@ import { EffectComposer } from '../lib/postprocessing/EffectComposer.js';
 import { RenderPass } from '../lib/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../lib/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../lib/postprocessing/OutputPass.js';
+import { ShaderPass } from '../lib/postprocessing/ShaderPass.js';
 import { nebulaMat } from './materials.js';
 
 export const renderer = new THREE.WebGLRenderer({antialias:false, preserveDrawingBuffer:false});
@@ -77,7 +78,18 @@ const mainPass = new RenderPass(scene, camera);
 mainPass.clear = false;                   // draw on top of the sky...
 mainPass.clearDepth = true;               // ...but with a fresh depth buffer
 export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .55, .45, .9);
-composer.addPass(skyPass); composer.addPass(mainPass); composer.addPass(bloom); composer.addPass(new OutputPass());
+// safety net before the bloom: a single NaN or infinite pixel would otherwise be blurred into a flickering black blotch
+const sanitize = new ShaderPass({
+  uniforms:{ tDiffuse:{value:null} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader:`uniform sampler2D tDiffuse; varying vec2 vUv;
+  void main(){
+    vec4 c=texture2D(tDiffuse,vUv);
+    if(any(isnan(c)) || any(isinf(c))) c=vec4(0.,0.,0.,1.);
+    gl_FragColor=vec4(clamp(c.rgb,0.,64.),c.a);
+  }`,
+});
+composer.addPass(skyPass); composer.addPass(mainPass); composer.addPass(sanitize); composer.addPass(bloom); composer.addPass(new OutputPass());
 
 export const pxScale = {value:1};   // pixels per unit at distance 1 (ring particles, LOD, picking)
 export const view = {shiftX:0};     // wallpaper setting: slide the framing left/right
