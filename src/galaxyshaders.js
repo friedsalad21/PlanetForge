@@ -145,7 +145,7 @@ export function makeVolumeMat(u){
       float tx=abs(d.y)>1e-6 ? -o.y/d.y : -1., Tx=1.;                  // where the ray crosses the mid-plane
       if(tb>ta){
         float dt=(tb-ta)/float(uSteps), j=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
-        for(int i=0;i<128;i++){
+        for(int i=0;i<64;i++){          // (a modest bound: on Windows, long loops make shaders slow to compile)
           if(i>=uSteps) break;
           float t=ta+(float(i)+j)*dt; float du;
           vec3 e=diskEmit(o+d*t,g,du);
@@ -235,7 +235,7 @@ export function makeNebulaVolMat(){
       float t0=max(-b-h,0.), t1=-b+h, dt=(t1-t0)/float(uSteps);
       float j=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
       vec3 col=vec3(0.); float T=1.;
-      for(int i=0;i<64;i++){
+      for(int i=0;i<32;i++){
         if(i>=uSteps) break;
         vec3 p=o+d*(t0+(float(i)+j)*dt); float m;
         float g=dens(p,m);
