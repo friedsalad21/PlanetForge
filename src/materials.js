@@ -278,7 +278,7 @@ export const cloudMat = new THREE.ShaderMaterial({
       if(uLightning>0.){   // lightning: brief flickering flashes deep inside thick storm cells
         vec3 cell=floor(p*28.), hh=hash3(cell);
         float slot=floor(uTime*2.5+hh.x*97.);
-        float on=step(.982,fract(sin(dot(cell,vec3(12.9,78.2,37.7))+slot*13.37)*43758.5));
+        float on=step(.982,hash3(cell+vec3(0.,0.,slot*1.618)).x);
         vec3 f=fract(p*28.)-.5-(hh-.5)*.5;
         flash=on*exp(-dot(f,f)*14.)*smoothstep(uCloud+.15,uCloud+.45,c)*uLightning*(.55+.45*sin(uTime*60.+hh.y*9.));
       }

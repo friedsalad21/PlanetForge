@@ -13,5 +13,5 @@ Notes for anyone (human or AI) making changes here. Sean (the owner) asked for t
 - Seeds must stay stable: old links (`#123`, `#123-p2m1`, `#g0.s1234`) should keep showing the same worlds. New random choices go on the second random stream (`x` / `extraRng`) or a separately seeded one, never in the middle of the original `r` stream.
 - The "To review" items in `ROADMAP.md` (pulsar beams, black hole warping and zoom limit) are only to be done when Sean asks.
 - The page must be served over http (ES modules); `python3 -m http.server` in the repo is enough. Nothing is built; three.js is bundled in `lib/`.
-- Avoid `fract(sin(x))` hashes with large inputs in shaders (they break on many GPUs) and very long shader loops (slow to compile on Windows/DirectX).
+- Shaders: for random numbers use `rhash` / `hash3` / `n1` from `src/shaders.js` (exact integer hashes), never `fract(sin(x))`, which breaks on many GPUs. Keep shader loops short (64 or less where possible): long loops are slow to compile on Windows/DirectX.
 - Type `PF` in the browser console for a debug handle (`PF.S`, `PF.L`, `PF.nav`, `PF.go(id)`).

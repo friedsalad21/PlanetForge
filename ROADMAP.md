@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 6 October 2026** (galaxy navigation and freeze fixes).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 6 October 2026** (exact hashes in every shader; plan for running on any device).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
@@ -24,6 +24,19 @@ Today: universe seed → 800 galaxies → 60,000–150,000 stars each → a full
 - [ ] Black hole warping (the stars around it stretched into arcs): remove completely
 
 ---
+
+## 11. Runs on anything (planned: ideas, not started)
+
+Goal: smooth and sharp on an old phone or a laptop with integrated graphics, not just on a gaming PC. Today the automatic quality only lowers the resolution, which is why weak devices get blurry and still lag: the cost is in the shaders, so that's what has to scale. Ideas, roughly in order of payoff:
+
+- [ ] **Bake planet surfaces into textures:** when you arrive at a planet, draw its surface (and clouds) once into a texture, then each frame just look it up. The expensive terrain maths runs once per planet instead of for every pixel of every frame; detail is re-baked for the patch you're looking at when you zoom in. This is how most games do it, and it's the biggest win.
+- [ ] **Quality tiers instead of only resolution:** Low / Medium / High / Ultra presets that switch what's drawn: fewer noise layers, one cloud layer, a simpler atmosphere and rings, fewer ray-march steps for black holes, nebulae and galaxies, no lightning or ring particles on Low. Resolution only drops once the cheaper shaders aren't enough.
+- [ ] **Detect the device on first load:** read the GPU name (integrated Intel/AMD, Mali, older Adreno, software rendering) and run a two-second benchmark, then start on the right tier; remember it per device, and let the settings panel override it.
+- [ ] **Sharp at lower resolution:** a sharpening upscale pass (like AMD's FSR 1) so rendering at 60% still looks crisp; text and UI stay at full resolution.
+- [ ] **Cheaper extras on low tiers:** smaller bloom (or none), no multisampling, 8-bit render targets where half-float isn't supported (some old phones), a 30 fps default on battery and phones.
+- [ ] **Don't redraw when nothing moves:** when paused and the camera is still, stop rendering (saves battery, keeps phones cool).
+- [ ] **Lighter galaxies:** on low tiers draw galaxies with the cheap far-away version (no ray-marching), with fewer star points.
+- [ ] **Load less up front:** compile only the shaders the current tier needs, and generate galaxy stars in a background worker so nothing hitches.
 
 ## 1. Free movement (do first: everything else builds on it)
 
@@ -186,4 +199,5 @@ Still open from phase 4:
   - A galaxy star system's sky no longer shows visited-star rings or streaks from edge-on star-forming knots
   - Galaxy shaders: shorter loops (much faster to compile on Windows), the nebula shader is warmed up, and every shader is drawn once off screen before it's needed
   - Clicking in a galaxy or the universe no longer locks the view for seconds
+  - Every shader now uses the exact integer hash (craters, city lights, volcano spots, lightning) instead of `fract(sin())`; fine details like crater spots and city layouts shifted once, worlds themselves are unchanged
 - [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles

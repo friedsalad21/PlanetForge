@@ -50,7 +50,17 @@ float ridged(vec3 p, float s){
   }
   return sum;
 }
-vec3 hash3(vec3 p){p=vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6)));return fract(sin(p)*43758.5453);}
+#ifndef PF_RHASH
+#define PF_RHASH
+// exact integer hash (PCG): the same numbers on every GPU, unlike fract(sin(x)) which breaks down for big x
+uint rhash(uint v){ uint s=v*747796405u+2891336453u; uint w=((s>>((s>>28u)+4u))^s)*277803737u; return (w>>22u)^w; }
+#endif
+// three random numbers for any point (hashes the exact bits of the floats, so any input works)
+vec3 hash3(vec3 p){
+  uvec3 u=floatBitsToUint(p+0.);   // (+0. turns -0 into 0)
+  uint h=rhash(u.x^rhash(u.y^rhash(u.z)));
+  return vec3(uvec3(h,rhash(h),rhash(h+0x9e3779b9u)))*(1./4294967295.);
+}
 // one crater per grid cell: a bowl with a raised rim
 float craters(vec3 p){
   vec3 i=floor(p), f=fract(p); float h=0.;
@@ -71,7 +81,11 @@ vec3 rotAround(vec3 v, vec3 k, float a){ float c=cos(a), s=sin(a); return v*c+cr
 export const RINGFN = `
 // 1D value noise from an exact integer hash. (The old fract(sin(x)) hash breaks down on many GPUs once x gets big,
 // which turned fine ringlets into blocks and hard lines.) Period 8192, so callers can wrap x and stay seamless.
+#ifndef PF_RHASH
+#define PF_RHASH
+// exact integer hash (PCG): the same numbers on every GPU, unlike fract(sin(x)) which breaks down for big x
 uint rhash(uint v){ uint s=v*747796405u+2891336453u; uint w=((s>>((s>>28u)+4u))^s)*277803737u; return (w>>22u)^w; }
+#endif
 float h1(float x){ return float(rhash(uint(mod(x,8192.))))*(1./4294967295.); }
 float n1(float x){ x=mod(x,8192.); float i=floor(x); return mix(h1(i),h1(i+1.),smoothstep(0.,1.,x-i)); }
 float ringBands(float t, vec3 K){ return n1(t*K.x)*.5+n1(t*K.y+9.)*.3+n1(t*K.z+3.)*.2; }
