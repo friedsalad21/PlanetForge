@@ -23,6 +23,55 @@ Each level gets its own seed and is only generated when you get close, so the un
 
 ---
 
+## Next up: phase 4 plan (galaxy and universe)
+
+Phase 4 is the big step towards the No Man's Sky goal: today every seed is one isolated system; after it, every system is a real star in a galaxy you can fly through. It's split into milestones that each ship on their own, so the site keeps working after every push.
+
+**Ground rules**
+- Old links keep working: `#123` still opens the same system as today. New links get a prefix (see 4e).
+- Nothing is stored: every galaxy, sector and star is rebuilt from seeds as you approach it.
+- Three scales, never mixed in one scene: universe (galaxies), galaxy (stars as points), system (what we have now). Switching scale is a crossfade + camera hand-off, and the floating origin from phase 1 keeps each one jitter-free.
+
+**4a. One galaxy you can look at** (new `src/galaxy.js`)
+- [ ] Galaxy shape from a seed: spiral (2 to 6 log-spiral arms, bar or no bar), elliptical, irregular
+- [ ] Density function: bright bulge + exponential disk + arms, with dark dust lanes along the inner edge of each arm
+- [ ] Draw it as ~200,000 GPU points (one draw call, size and colour per star) plus a soft glow layer, so it looks right from far away
+- [ ] Colours follow the structure: young blue/white stars and pink star-forming knots in the arms, older yellow/red core
+- [ ] Galaxy view: orbit it like a planet, with bloom on the core
+
+**4b. Every star is a system**
+- [ ] Split the galaxy into a 3D grid of sectors; each sector's stars come from `hash(galaxy seed, sector)`, generated only near the camera
+- [ ] Each star gets a type that fits where it is (more red dwarfs everywhere, blue giants in the arms, exotic stars rare) and its own system seed
+- [ ] `build(seed, {star})`: the system generator accepts the star type the galaxy chose, so the star you clicked is the star you arrive at
+- [ ] Hover a star: name, type, distance; click: fly to it, and as you arrive the point becomes the real system (crossfade)
+- [ ] "Zoom out" from a system goes back up to the galaxy, at that star
+
+**4c. Landmarks**
+- [ ] Supermassive black hole at the centre (reuses the black hole system, scaled up)
+- [ ] Nebulae as places: soft ray-marched clouds in the arms that you can fly into, with protostars inside
+- [ ] Star clusters (open clusters in the arms, globular clusters in the halo)
+- [ ] Rare systems (Dyson spheres, stations, rogues) tend to show up in the right neighbourhoods
+
+**4d. Travel**
+- [ ] Warp / hyperspace effect when jumping between stars (stars stretch into streaks, short flash on arrival)
+- [ ] Free-fly works in galaxy view too, with speed scaled to the zoom
+- [ ] Wallpaper tour: drift through the galaxy, dip into a system now and then
+
+**4e. Map, search and links**
+- [ ] Galaxy map overlay: your position, visited stars, "jump to random star"
+- [ ] Links to any place: `#g<galaxy>` (galaxy), `#g<galaxy>.<star>` (system), `#g<galaxy>.<star>-p2m1` (moon); plain `#123` stays a standalone system
+- [ ] Search by seed or star name
+
+**4f. The universe**
+- [ ] Universe seed → galaxies scattered in clusters and filaments; far ones are small images (impostors), near ones become full galaxies
+- [ ] Fly between galaxies with a longer warp
+
+**Performance budget:** galaxy view must hold 60 fps on the same machines as today (one draw call for the far stars, sector generation spread over several frames, no shader compile stalls: add the new shaders to the warm-up). Auto quality scales the star count.
+
+**Open questions for Sean** (sensible defaults chosen if not answered): should the website open in galaxy view or keep opening on a random system (default: random system, with a "Galaxy" button)? Should the wallpaper show galaxies (default: yes, as a new allowed kind)?
+
+---
+
 ## 1. Free movement (do first: everything else builds on it)
 
 - [x] Click any planet, moon or star to fly smoothly to it and orbit around it
@@ -143,3 +192,5 @@ Each level gets its own seed and is only generated when you get close, so the un
 - [x] Wallpaper Engine support with 25 settings, bundled three.js for offline use
 - [x] Code split into ES modules (`src/`)
 - [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds, phase 6 planet visuals and phase 10 quality of life (above)
+- [x] Fixed black flickering (NaN pixels from a few shaders, plus a clean-up pass before the bloom)
+- [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles
