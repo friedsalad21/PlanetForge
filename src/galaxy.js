@@ -57,7 +57,9 @@ export function renderVolume(camera){
 // a cube camera (a star system's sky) renders the glow at full quality, straight into its faces
 export function withFullVolume(fn){
   galaxyScene.add(volume); volQuad.visible = false;
-  try { fn(); } finally { volScene.add(volume); }
+  const vis = visited.visible, hov = hoverMark.visible;
+  visited.visible = hoverMark.visible = false;   // markers are for the galaxy view, not a star system's sky
+  try { fn(); } finally { volScene.add(volume); visited.visible = vis; hoverMark.visible = hov; }
 }
 
 export const G = { g:null, stars:null, names:new Map(), force:null };
@@ -168,7 +170,7 @@ export function updateGalaxy(camera, steps, px = pxScale.value){
   const core = Math.exp(-(((D/R)/(3*g.rb))**2)/2);   // deep in the bulge, light comes from every side
   volMat.uniforms.uExposure.value = Math.exp(THREE.MathUtils.lerp(Math.log(.3), Math.log(.9), t))*(1-.9*core);
   volMat.uniforms.uGamma.value = THREE.MathUtils.lerp(1.9, 1, t);
-  u.uHii.value.copy(g.hii).multiplyScalar(THREE.MathUtils.lerp(.25, 1, t));   // the thin knots alias from inside the disk; the nebulae take over there
+  u.uHii.value.copy(g.hii).multiplyScalar(t*t);   // seen edge-on from inside the disk the thin knots smear into streaks; the nebulae take over there   // the thin knots alias from inside the disk; the nebulae take over there
   for (const m of nebGroup.children){
     const mu = m.material.uniforms;
     mu.uCamL.value.copy(lc).sub(m.position).divideScalar(m.scale.x);
