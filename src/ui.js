@@ -8,7 +8,7 @@ import { rngFor } from './gen.js';
 import { build, bodyInfo } from './system.js';
 import { C, flyTo, systemView, setFly, resetCamera, pickAt, keys, addLook, stick, touchBoost } from './camera.js';
 import { NAV, parseAddr, addr, context, enterUniverse, enterGalaxy, enterSystem, useGalaxy, plainSystem, up, newPlace, zoomOut as navZoomOut,
-  click as navClick, hoverAt, warping, warp, resetTours } from './nav.js';
+  click as navClick, hoverAt, warping, warp, resetTours, interrupt } from './nav.js';
 import { UNI, makeUniverse } from './universe.js';
 import { G } from './galaxy.js';
 import { search } from './search.js';
@@ -313,7 +313,10 @@ addEventListener('blur', ()=>keys.clear());
 // --- pointer: click a body to fly to it, click empty space to zoom out (or get a new world) ---
 const cv = renderer.domElement, labelEl = $('label');
 let down = null, hoverQueued = false, lastMove = null;
-cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; labelEl.style.opacity = 0; });
+cv.addEventListener('pointerdown', e => {
+  down = [e.clientX, e.clientY]; labelEl.style.opacity = 0;
+  if (L.level!=='system' && !C.fly) interrupt();
+}, {capture:true});
 cv.addEventListener('pointermove', e => {
   if (C.fly){
     if (document.pointerLockElement===cv) addLook(e.movementX, e.movementY);
@@ -358,6 +361,7 @@ cv.addEventListener('pointerup', e => {
   else if (C.focus) systemView();
   else newWorld();
 });
+cv.addEventListener('wheel', () => { if (L.level!=='system' && !C.fly) interrupt(); }, {capture:true});
 cv.addEventListener('wheel', e => {
   // scrolling out past the edge of a star system that's in a galaxy carries on out to the galaxy
   if (!C.fly && e.deltaY > 0 && L.level==='system' && L.gi!=null && !C.focus && !C.flight && !warping()

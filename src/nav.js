@@ -151,7 +151,8 @@ export function enterUniverse({instant = false} = {}){
 function universeClick(cx, cy){
   const o = pickUniverse(cx, cy, camera, renderer.domElement.getBoundingClientRect(), renderer.getPixelRatio());
   if (o) return flyToGalaxy(o);
-  flyCam(controls.target.clone(), Math.min(camera.position.distanceTo(controls.target)*2.5, 900), {dur:2});
+  const D = camera.position.distanceTo(controls.target);   // back out, unless already well out (or on the way)
+  if (!F && D < 140) flyCam(controls.target.clone(), Math.min(D*2.5, 160), {dur:2});
 }
 function flyToGalaxy(o){
   // end up looking at its disk from about 40° off its axis, on the side we're already on
@@ -209,11 +210,16 @@ let pending = null;
 function galaxyClick(cx, cy){
   const hit = pickGalaxy(cx, cy, camera, renderer.domElement.getBoundingClientRect());
   if (hit) return visit(hit.key);
-  // empty space: back out a step (a region, then the whole galaxy)
+  backOut();
+}
+// empty space / Esc: back out a step (a region, then the whole galaxy). Already looking at the whole galaxy, or already
+// on the way out: nothing (each click used to restart a flight to the same spot, locking the view for seconds)
+function backOut(){
+  if (F && !pending) return;
   const D = camera.position.distanceTo(controls.target), R = G.g.R;
+  setHover(null); pending = null;
   if (controls.target.lengthSq() > 1 && D < R*.4) flyCam(controls.target.clone(), Math.min(D*6, R*.6), {dur:1.8});
-  else flyCam(new THREE.Vector3(), 3.2*R, {dur:2.4});
-  setHover(null);
+  else if (controls.target.length() > .15*R || D < 2.4*R) flyCam(new THREE.Vector3(), 3.2*R, {dur:2.4});
 }
 export function visit(key){
   const p = placeWorld(key), pi = placeInfo(key);
@@ -282,8 +288,8 @@ function randomStar(){
 }
 // Esc: back out
 export function zoomOut(){
-  if (L.level==='galaxy') galaxyClick(-1e5, -1e5);
-  else if (L.level==='universe') flyCam(controls.target.clone(), 160, {dur:2});
+  if (L.level==='galaxy') backOut();
+  else if (L.level==='universe' && !F && camera.position.distanceTo(controls.target) < 140) flyCam(controls.target.clone(), 160, {dur:2});
 }
 
 // --- the Milky Way of a star system: the galaxy drawn from where its star is, once, into the sky ---
@@ -378,6 +384,13 @@ export function hoverAt(cx, cy){
     return o ? o.g.name[0].toUpperCase()+o.g.name.slice(1)+' · '+o.g.label.toLowerCase() : null;
   }
   return null;
+}
+
+// grabbing the view (drag or scroll) takes over from a flight in progress, instead of being ignored until it ends
+export function interrupt(){
+  if (!F || W.phase || flags.wallpaper) return;
+  F = null; pending = null;
+  controls.enabled = true;
 }
 
 // --- per frame, outside a star system ---
