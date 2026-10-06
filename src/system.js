@@ -59,13 +59,16 @@ function clearSystem(){
 }
 
 // ---------------------------------------------------------------------------------------------------
-export function build(seed){
+// o: what a galaxy has already decided about this place (see nav.js): {mode, star, name, supermassive, nebula}
+let force = {};
+export function build(seed, o = {}){
   clearSystem();
   S.seed = seed;
+  force = o;
   const r = rngFor(seed), x = extraRng(seed);
   const pick = a => a[Math.floor(r()*a.length)];
   const roll = r();
-  S.mode = roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole';
+  S.mode = o.mode ?? (roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole');
   S.minDist = 1.15;
   sunSprite.visible = S.mode==='planet';
   keyLight.intensity = S.mode==='planet' ? 3 : 0;
@@ -80,10 +83,16 @@ export function build(seed){
   nebulaMat.uniforms.uSeed.value.set(r()*50,r()*50,r()*50);
   nebulaMat.uniforms.uA.value.copy(c(r(),.7,.5)); nebulaMat.uniforms.uB.value.copy(c(r(),.7,.5));
   nebulaMat.userData.density = .3+r()*1.2;
+  if (o.mode) nebulaMat.userData.density *= .45;   // in a galaxy the Milky Way band is the main backdrop
   if (S.stars.some(s => s.name==='protostar')) nebulaMat.userData.density = 1.6+x();   // young stars sit in thick nebulae
+  if (o.nebula){
+    nebulaMat.uniforms.uA.value.copy(o.nebula.a); nebulaMat.uniforms.uB.value.copy(o.nebula.b);
+    nebulaMat.userData.density = 2.2;
+  }
   nebulaMat.uniforms.uDensity.value = nebulaMat.userData.density*opts.nebula;
   S.fitDist = Math.min(22, Math.max(3.6, extent*1.25+1));
   S.sysName = makeName(r, S.mode==='planet');
+  if (o.name) S.sysName = o.name;
   nameBodies();
   S.rarity = rarity(S.finds);
   if (S.mode==='blackhole') refreshSky();
@@ -142,7 +151,11 @@ function worldFinds(w, n){
 function buildStarSystem(r, x, pick){
   const A = pickStar(r, STAR_POOL);
   let exotic = null;
-  if (A.name!=='neutron star' && x() < .1){
+  if (force.star){   // the galaxy already showed this star: arrive at the same kind of star
+    if (force.star!==A.name) Object.assign(A, starOfType(force.star, x));
+    if (EXOTIC_STARS.includes(force.star)) exotic = force.star;
+  }
+  else if (A.name!=='neutron star' && x() < .1){
     exotic = EXOTIC_STARS[Math.floor(x()*EXOTIC_STARS.length)];
     Object.assign(A, starOfType(exotic, x));
   }
@@ -283,14 +296,15 @@ function buildStarSystem(r, x, pick){
   if (S.shells.length && A.name==='white dwarf') S.bits.push('inside a planetary nebula');
   if (S.shells.length && A.name==='neutron star') S.bits.push('inside a supernova remnant');
   if (exotic==='protostar') S.bits.push('planets still forming');
-  S.finds.push(['star system', .2]);
+  S.finds.push(['star system', force.mode ? 1 : .2]);
   return Math.max(cursor, ...S.comets.map(cm => cm.orbit.apo*.6));
 }
 
 // --- black hole ---
 let cubeRT = null, cubeCam = null;
 function buildBlackHole(r, x){
-  const outer = 1.8+r()*1.8, h = r();
+  const big = force.supermassive;
+  const outer = (big ? 3.2 : 1.8)+r()*1.8, h = r();
   const tiltX = (r()-.5)*.3;
   const blue = r()<.3;
   const hot = blue ? c(.58,.5,.95) : r()<.7 ? c(.12,.7,.92) : c(h+.05,.6,.92);
@@ -314,7 +328,11 @@ function buildBlackHole(r, x){
   S.minDist = 1.1;
   addBody({type:'blackhole', obj:g, localR:1, id:'bh'});
   S.bits = ['Black hole', `${mass.toFixed(1)} solar masses`];
-  S.finds.push(['black hole', .1]);
+  S.finds.push(['black hole', force.mode ? 1 : .1]);
+  if (big){
+    S.bits = ['Supermassive black hole', `${(1+x()*40).toFixed(1)} million solar masses`, 'at the centre of its galaxy'];
+    S.finds.push(['supermassive', .01]);
+  }
   if (blue) S.finds.push(['blue disk', .3]);
   return outer*3.4;   // stand well back: up close the lensing fills the whole sky
 }

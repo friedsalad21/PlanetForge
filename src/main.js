@@ -6,7 +6,7 @@
 //   ui.js        toolbar, keys, links            wallpaper.js  Wallpaper Engine settings
 import * as THREE from 'three';
 import { S, opts } from './state.js';
-import { renderer, camera, controls, root, scene, render, SUN, skyScene, skyCamera, composer } from './scene.js';
+import { renderer, camera, controls, root, scene, render, SUN, skyScene, skyCamera, composer, skyPass, mainPass } from './scene.js';
 import { updateSystem, lightAll, updateLOD } from './system.js';
 import { C, updateCamera, flyTo } from './camera.js';
 import { start, load } from './ui.js';
@@ -15,6 +15,9 @@ import './wallpaper.js';
 import { settings, loadSaved } from './settings.js';
 import { perfTick } from './perf.js';
 import { warmUp } from './warmup.js';
+import { L } from './state.js';
+import { navFrame } from './nav.js';
+import * as nav from './nav.js';
 
 loadSaved();
 start();
@@ -26,7 +29,7 @@ async function compileAll(){
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // let "Generating…" paint
   updateSystem(0); root.updateMatrixWorld(true); camera.updateMatrixWorld(); updateLOD(); lightAll();
   renderer.setRenderTarget(composer.renderTarget1);
-  try { await renderer.compileAsync(skyScene, skyCamera); await renderer.compileAsync(scene, camera); }
+  try { await renderer.compileAsync(skyPass.scene, skyCamera); await renderer.compileAsync(mainPass.scene, camera); }
   catch (e) { console.warn('shader precompile failed', e); }
   renderer.setRenderTarget(null);
   ready = true;
@@ -45,6 +48,11 @@ renderer.setAnimationLoop(now => {
   lastFrame = now;
   const rawDt = clock.getDelta(), realDt = Math.min(rawDt, .1);
   if (frames++ > 5) perfTick(rawDt);
+  if (navFrame(realDt)){   // in a galaxy or the universe
+    render();
+    loadingEl.hidden = true;
+    return;
+  }
   const dt = realDt*opts.timeScale*S.time.scale;               // orbital time: pause, slow motion, fast-forward
   S.simTime += dt;
   S.fxTime += realDt*opts.timeScale*Math.min(S.time.scale, 3);  // surfaces animate at most 3× so they don't boil
@@ -71,4 +79,4 @@ renderer.setAnimationLoop(now => {
 });
 
 // handy from the browser console (and for automated checks)
-window.PF = { S, C, opts, load, build, flyTo, THREE, SUN, camera, controls, go:id => flyTo(S.bodies.find(b => b.id===id), {instant:true}) };
+window.PF = { S, C, L, nav, opts, load, build, flyTo, THREE, SUN, camera, controls, go:id => flyTo(S.bodies.find(b => b.id===id), {instant:true}) };

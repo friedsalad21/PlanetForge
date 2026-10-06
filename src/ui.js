@@ -1,12 +1,16 @@
 // Toolbar, keyboard, mouse/touch, the info text and links.
 import * as THREE from 'three';
-import { S, opts, flags } from './state.js';
+import { S, L, opts, flags } from './state.js';
 import { renderer, render, resize, composer } from './scene.js';
 import { settings, apply, resetSettings, quality } from './settings.js';
 import { stats } from './perf.js';
 import { rngFor } from './gen.js';
 import { build, bodyInfo } from './system.js';
 import { C, flyTo, systemView, setFly, resetCamera, pickAt, keys, addLook, stick, touchBoost } from './camera.js';
+import { NAV, parseAddr, addr, context, enterUniverse, enterGalaxy, enterSystem, plainSystem, up, newPlace, zoomOut as navZoomOut,
+  click as navClick, hoverAt, warping, resetTours } from './nav.js';
+import { UNI, makeUniverse } from './universe.js';
+import { G } from './galaxy.js';
 
 const $ = id => document.getElementById(id);
 const nameEl = $('name'), metaEl = $('meta'), seedEl = $('seed'), rarityEl = $('rarity'), hintEl = $('hint');
@@ -23,7 +27,7 @@ export function showInfo(b, why){
   }
   nameEl.textContent = b ? b.name : S.sysName;
   metaEl.textContent = (b ? bodyInfo(b) : S.bits).join(' · ');
-  seedEl.textContent = 'seed '+S.seed+(b ? ` · in ${S.sysName}` : '');
+  seedEl.textContent = 'seed '+S.seed+(b ? ` · in ${S.sysName}` : '')+context();
   const R = S.rarity;
   rarityEl.textContent = R?.tier && !b ? `◆ ${R.tier} find · a 1 in ${R.n.toLocaleString('en')} combination` : '';
   rarityEl.dataset.tier = R?.tier ?? '';
@@ -36,22 +40,41 @@ export function showInfo(b, why){
 }
 renderer.domElement.setAttribute('role', 'img');
 C.onFocus = (b, why) => {
+  if (L.level!=='system') return;
   showInfo(b, why);
-  if (!flags.wallpaper && why!=='fly') history.replaceState(history.state, '', '#'+S.seed+(b ? '-'+b.id : ''));
+  if (!flags.wallpaper && why!=='fly') history.replaceState(history.state, '', '#'+addr(b?.id));
+};
+// in a galaxy or the universe, nav.js says what's on screen
+NAV.onInfo = a => {
+  $('sys').hidden = false;
+  nameEl.textContent = a.name; metaEl.textContent = a.meta.join(' · '); seedEl.textContent = a.seed;
+  rarityEl.textContent = ''; rarityEl.dataset.tier = '';
+  hintEl.textContent = a.hint;
+  $('sr').textContent = `${a.name}. ${metaEl.textContent}.`;
+  renderer.domElement.setAttribute('aria-label', $('sr').textContent);
+};
+// the toolbar follows the level we're at
+NAV.onLevel = () => {
+  const sys = L.level==='system';
+  $('up').hidden = L.level==='universe';
+  $('up').textContent = sys ? '✦ Galaxy' : '✦ Universe';
+  $('up').title = sys ? (L.gi!=null ? 'Zoom out to the galaxy around this star (G)' : 'Zoom out to a galaxy (G)') : 'Zoom out to the universe (G)';
+  $('orb').hidden = !sys;
+  $('timebar').hidden = !sys || flags.wallpaper;
+  $('next').title = sys && L.gi==null ? 'New world (Space or →)' : L.level==='universe' ? 'Fly to a random galaxy (Space or →)' : 'Jump to a random star (Space or →)';
+  prevBtn.disabled = depth()===0;
 };
 
 // --- worlds and history ---
-// seeds are unsigned 64-bit integers in the URL hash, optionally followed by the body you're looking at (#123-p2m1)
-const MAX = (1n<<64n)-1n;
-export function parseHash(h = location.hash){
-  const m = /^#?(\d+)(?:-([a-z0-9]+))?$/.exec(h);
-  return m ? {seed:BigInt(m[1]) & MAX, body:m[2] ?? null} : null;
-}
+// seeds are unsigned 64-bit integers in the URL hash, optionally followed by the body you're looking at (#123-p2m1);
+// places in galaxies have addresses of their own (see nav.js)
+export function parseHash(h = location.hash){ return parseAddr(h); }
 // the first random number of a seed decides planet / star system / black hole (see build)
 const modeOf = seed => { const x = rngFor(seed)(); return x<.7 ? 'planet' : x<.9 ? 'star' : 'blackhole'; };
 const prevBtn = $('prev');
 const depth = () => history.state?.d ?? 0;
 export function load(seed, bodyId){
+  plainSystem();
   build(seed);
   resetCamera();
   showInfo(null);
@@ -59,7 +82,16 @@ export function load(seed, bodyId){
   if (b) flyTo(b, {instant:true});
 }
 export function newWorld(push = !flags.wallpaper){
-  const any = Object.values(opts.allow).some(Boolean);
+  if (warping()) return;
+  if (!flags.wallpaper && (L.level!=='system' || L.gi!=null)) return newPlace();   // in a galaxy: a random star
+  const kinds = ['planet','star','blackhole'].filter(k => opts.allow[k]);
+  if (flags.wallpaper && opts.allow.galaxy && (!kinds.length || Math.random() < .3)){   // the wallpaper: now and then a galaxy
+    L.U = 1n; makeUniverse(1n);
+    enterGalaxy(Math.floor(Math.random()*UNI.gals.length), {instant:true});
+    resetTours();
+    return;
+  }
+  const any = kinds.length > 0;
   let seed;
   for (let i=0;i<200;i++){   // reroll until it's a kind the wallpaper settings allow
     seed = crypto.getRandomValues(new BigUint64Array(1))[0];
@@ -70,18 +102,34 @@ export function newWorld(push = !flags.wallpaper){
   load(seed);
   prevBtn.disabled = depth()===0;
 }
+// go to an address (a link, the Back button, or the wallpaper's fixed seed)
+export function go(a){
+  const focusBody = () => { const b = S.bodies.find(b => b.id===a.body); b ? flyTo(b) : systemView(); };
+  if (a.kind==='plain'){
+    if (L.level==='system' && L.gi==null && a.seed===S.seed) focusBody(); else load(a.seed, a.body);
+    return;
+  }
+  if (L.U!==a.U){ L.U = a.U; }
+  makeUniverse(L.U);
+  if (a.kind!=='universe' && !(a.gi < UNI.gals.length)) a = {kind:'universe', U:a.U};
+  if (a.kind==='universe') return enterUniverse({instant:true});
+  if (a.kind==='galaxy') return L.level==='galaxy' && L.gi===a.gi ? navZoomOut() : enterGalaxy(a.gi, {instant:true});
+  if (L.level==='system' && L.gi===a.gi && L.place===a.place) return focusBody();
+  enterGalaxy(a.gi, {instant:true});   // makes sure the galaxy's stars exist, then checks the place is real
+  const n = +a.place.slice(1);
+  if (a.place[0]==='s' ? n < G.stars.N : n < G.g.nebulae.length) enterSystem(a.gi, a.place, {body:a.body, push:false});
+}
 addEventListener('hashchange', () => {
-  const h = parseHash();
-  if (!h) return;
-  if (h.seed !== S.seed) load(h.seed, h.body);
-  else { const b = S.bodies.find(b => b.id===h.body); b ? flyTo(b) : systemView(); }
+  const a = parseHash();
+  if (a) go(a);
   prevBtn.disabled = depth()===0;
 });
 export function start(){
-  const h = parseHash();
-  if (h){ history.replaceState({d:0},'',location.href); load(h.seed, h.body); } else newWorld(false);
+  const a = parseHash();
+  if (a){ history.replaceState({d:0},'',location.href); go(a); } else newWorld(false);
   prevBtn.disabled = true;
   $('orb').classList.toggle('on', S.showOrbits);
+  NAV.onLevel();
 }
 
 // --- toolbar ---
@@ -124,7 +172,10 @@ function toggleOrbits(){
   toast(S.showOrbits ? 'Orbits shown' : 'Orbits hidden');
 }
 function toggleFly(){ setFly(!C.fly); }
-function zoomOut(){ if (C.fly) setFly(false, false); systemView(); }
+function zoomOut(){
+  if (C.fly) setFly(false, false);
+  if (L.level==='system') systemView(); else navZoomOut();
+}
 function toggleHelp(){ $('helpbox').hidden = !$('helpbox').hidden; $('setbox').hidden = true; }
 
 // --- settings panel ---
@@ -187,7 +238,7 @@ function planetN(n){
   if (p) flyTo(p);
 }
 
-for (const [id, fn] of [['prev',()=>history.back()],['next',()=>newWorld()],['sys',zoomOut],
+for (const [id, fn] of [['prev',()=>history.back()],['next',()=>newWorld()],['sys',zoomOut],['up',up],
   ['flyb',toggleFly],['orb',toggleOrbits],['copy',copyLink],['shot',screenshot],['hide',toggleUI],['showui',toggleUI],['help',toggleHelp],
   ['settings',toggleSettings],['setclose',toggleSettings],['setreset',()=>{ resetSettings(); syncPanel(); toast('Settings reset'); }],
   ['pause',pause],['slower',slower],['faster',faster],['helpclose',toggleHelp],['flyexit',()=>setFly(false)]])
@@ -203,12 +254,13 @@ addEventListener('keydown', e=>{
   }
   const act = {
     Space:()=>newWorld(), ArrowRight:()=>newWorld(), ArrowLeft:()=>depth()>0 && history.back(),
-    KeyC:copyLink, KeyS:screenshot, KeyH:toggleUI, KeyO:toggleOrbits, KeyF:toggleFly,
+    KeyC:copyLink, KeyS:screenshot, KeyH:toggleUI, KeyO:()=>L.level==='system' && toggleOrbits(), KeyF:toggleFly, KeyG:up,
     KeyP:pause, KeyK:pause, Comma:slower, Period:faster, BracketLeft:slower, BracketRight:faster,
-    Escape:()=>{ if (!$('helpbox').hidden || !setbox.hidden) closePanels(); else if (document.body.classList.contains('clean')) toggleUI(); else if (C.fly || C.focus) zoomOut(); },
-    Tab:()=>cycle(e.shiftKey ? -1 : 1), Slash:toggleHelp,
-    Digit0:()=>{ const s = S.bodies.find(b => b.type==='star' || b.type==='blackhole'); s ? flyTo(s) : systemView(); },
-  }[e.code] ?? (/^Digit[1-9]$/.test(e.code) ? () => planetN(+e.code.slice(5)) : null);
+    Escape:()=>{ if (!$('helpbox').hidden || !setbox.hidden) closePanels(); else if (document.body.classList.contains('clean')) toggleUI();
+      else if (C.fly || C.focus || L.level!=='system') zoomOut(); },
+    Tab:()=>L.level==='system' && cycle(e.shiftKey ? -1 : 1), Slash:toggleHelp,
+    Digit0:()=>{ if (L.level!=='system') return; const s = S.bodies.find(b => b.type==='star' || b.type==='blackhole'); s ? flyTo(s) : systemView(); },
+  }[e.code] ?? (/^Digit[1-9]$/.test(e.code) && L.level==='system' ? () => planetN(+e.code.slice(5)) : null);
   if (act){ e.preventDefault(); act(); }
 });
 addEventListener('keyup', e=>{
@@ -233,6 +285,16 @@ cv.addEventListener('pointermove', e => {
 function hover(){
   hoverQueued = false;
   if (!lastMove || flags.wallpaper) return;
+  if (L.level!=='system'){
+    const text = warping() ? null : hoverAt(...lastMove);
+    cv.style.cursor = text ? 'pointer' : 'grab';
+    if (text){
+      labelEl.textContent = text;
+      labelEl.style.transform = `translate(${lastMove[0]+14}px,${lastMove[1]+12}px)`;
+      labelEl.style.opacity = 1;
+    } else labelEl.style.opacity = 0;
+    return;
+  }
   const b = pickAt(...lastMove);
   cv.style.cursor = b ? 'pointer' : 'grab';
   if (b && b!==C.focus){
@@ -247,6 +309,8 @@ cv.addEventListener('pointerup', e => {
   down = null;
   if (!click || flags.wallpaper) return;
   if (C.fly){ if (e.pointerType==='mouse' && document.pointerLockElement!==cv) cv.requestPointerLock?.(); return; }
+  if (L.level!=='system') return navClick(e.clientX, e.clientY);
+  if (warping()) return;
   const b = pickAt(e.clientX, e.clientY);
   if (b) flyTo(b);
   else if (C.focus) systemView();

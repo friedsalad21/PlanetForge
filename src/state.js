@@ -22,3 +22,7 @@ export const S = {
 export const opts = { zoom:1, nebula:1, timeScale:1, parallax:0, bloom:1, tour:true, tourSec:30,
   allow:{planet:true, star:true, blackhole:true} };
 export const flags = { wallpaper:false };
+
+// where we are in the universe (nav.js): 'system' (a star system or lone planet), 'galaxy' or 'universe'.
+// gi: the galaxy we're in (null for a plain seed); place: the star ('s123') or nebula ('n4') whose system we're in
+export const L = { level:'system', U:1n, gi:null, place:null };

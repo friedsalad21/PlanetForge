@@ -1,7 +1,7 @@
 // Camera: orbit the system or any body in it, fly smoothly between them, or fly freely (WASD + mouse).
 import * as THREE from 'three';
 import { camera, controls, root, renderer } from './scene.js';
-import { S, opts, flags } from './state.js';
+import { S, L, opts, flags } from './state.js';
 import { bodyPos, bodyRadius, screenRadius, lightAt } from './system.js';
 
 export const C = {
@@ -108,8 +108,8 @@ export function setFly(on, refocus = true){
     C.onFocus?.(null, 'fly');
   } else {
     if (document.pointerLockElement) document.exitPointerLock();
-    controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(tmp), .5);
-    if (refocus){ const b = nearestBody(); if (b) flyTo(b); else systemView(); }
+    controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(tmp), flyEnv.speed ? flyEnv.speed()*.5 : .5);
+    if (refocus && L.level==='system'){ const b = nearestBody(); if (b) flyTo(b); else systemView(); }
   }
 }
 function nearestSurface(){
@@ -126,7 +126,9 @@ export function nearestBody(){
   }
   return best;
 }
-function updateFly(dt){
+// in a galaxy or the universe, nav.js says how fast to go (there are no surfaces to measure against)
+export const flyEnv = { speed:null };
+export function updateFly(dt){
   camera.rotateY(-look.x*.0022); camera.rotateX(-look.y*.0022);
   look.x = look.y = 0;
   const roll = (keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
@@ -135,12 +137,13 @@ function updateFly(dt){
   const s = (keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+stick.x;
   const u = (keys.has('KeyR')?1:0)-(keys.has('KeyC')?1:0);
   // speed follows the distance to the nearest surface: cruise between planets, creep up on a moon
-  const base = THREE.MathUtils.clamp(nearestSurface()*.9, .002, 40)*C.speedMul*(keys.has('ShiftLeft')||keys.has('ShiftRight')||touchBoost.on ? 6 : 1);
+  const base = (flyEnv.speed ? flyEnv.speed() : THREE.MathUtils.clamp(nearestSurface()*.9, .002, 40))*C.speedMul*(keys.has('ShiftLeft')||keys.has('ShiftRight')||touchBoost.on ? 6 : 1);
   const want = tmp.set(s, u, -f);
   if (want.lengthSq() > 1) want.normalize();
   want.multiplyScalar(base).applyQuaternion(camera.quaternion);
   vel.lerp(want, 1-Math.exp(-dt*4));
   camera.position.addScaledVector(vel, dt);
+  if (flyEnv.speed) return;
   for (const b of S.bodies){   // don't fly through things
     const p = bodyPos(b, tmp2), R = bodyRadius(b)*1.01, d = camera.position.distanceTo(p);
     if (d < R) camera.position.sub(p).setLength(R).add(p);

@@ -7,6 +7,7 @@ import { UnrealBloomPass } from '../lib/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../lib/postprocessing/OutputPass.js';
 import { ShaderPass } from '../lib/postprocessing/ShaderPass.js';
 import { nebulaMat } from './materials.js';
+import { WarpShader } from './galaxyshaders.js';
 
 export const renderer = new THREE.WebGLRenderer({antialias:false, preserveDrawingBuffer:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -73,8 +74,8 @@ skyScene.add(sunSprite);
 // --- post-processing: render sky + scene into a multisampled HDR target, add bloom, then output ---
 const target = new THREE.WebGLRenderTarget(innerWidth, innerHeight, {type:THREE.HalfFloatType, samples:4});
 export const composer = new EffectComposer(renderer, target);
-const skyPass = new RenderPass(skyScene, skyCamera);
-const mainPass = new RenderPass(scene, camera);
+export const skyPass = new RenderPass(skyScene, skyCamera);
+export const mainPass = new RenderPass(scene, camera);
 mainPass.clear = false;                   // draw on top of the sky...
 mainPass.clearDepth = true;               // ...but with a fresh depth buffer
 export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .55, .45, .9);
@@ -89,7 +90,12 @@ const sanitize = new ShaderPass({
     gl_FragColor=vec4(clamp(c.rgb,0.,64.),c.a);
   }`,
 });
-composer.addPass(skyPass); composer.addPass(mainPass); composer.addPass(sanitize); composer.addPass(bloom); composer.addPass(new OutputPass());
+// the jump between places (nav.js): stars stretch into streaks and wash out to white
+export const warpPass = new ShaderPass(WarpShader);
+warpPass.enabled = false;
+composer.addPass(skyPass); composer.addPass(mainPass); composer.addPass(sanitize); composer.addPass(warpPass); composer.addPass(bloom); composer.addPass(new OutputPass());
+// which scenes are drawn: the star system (default), a galaxy, or the universe (nav.js switches them)
+export function setScenes(sky, main){ skyPass.scene = sky; mainPass.scene = main; }
 
 export const pxScale = {value:1};   // pixels per unit at distance 1 (ring particles, LOD, picking)
 export const view = {shiftX:0};     // wallpaper setting: slide the framing left/right
