@@ -42,9 +42,9 @@ export function showInfo(b, why){
 }
 renderer.domElement.setAttribute('role', 'img');
 C.onFocus = (b, why) => {
-  if (L.level!=='system') return;
+  if (L.level!=='system' && why!=='fly') return;
   showInfo(b, why);
-  if (!flags.wallpaper && why!=='fly') history.replaceState(history.state, '', '#'+addr(b?.id));
+  if (!flags.wallpaper && why!=='fly' && L.level==='system') history.replaceState(history.state, '', '#'+addr(b?.id));
 };
 // in a galaxy or the universe, nav.js says what's on screen
 NAV.onInfo = a => {

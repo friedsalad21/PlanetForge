@@ -109,7 +109,8 @@ export function setFly(on, refocus = true){
   } else {
     if (document.pointerLockElement) document.exitPointerLock();
     controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(tmp), flyEnv.speed ? flyEnv.speed()*.5 : .5);
-    if (refocus && L.level==='system'){ const b = nearestBody(); if (b) flyTo(b); else systemView(); }
+    if (L.level!=='system'){ controls.enabled = !flags.wallpaper; flyEnv.onExit?.(); }   // a galaxy or the universe: orbit from here
+    else if (refocus){ const b = nearestBody(); if (b) flyTo(b); else systemView(); }
   }
 }
 function nearestSurface(){
@@ -127,7 +128,7 @@ export function nearestBody(){
   return best;
 }
 // in a galaxy or the universe, nav.js says how fast to go (there are no surfaces to measure against)
-export const flyEnv = { speed:null };
+export const flyEnv = { speed:null, onExit:null };
 export function updateFly(dt){
   camera.rotateY(-look.x*.0022); camera.rotateX(-look.y*.0022);
   look.x = look.y = 0;

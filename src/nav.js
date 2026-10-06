@@ -16,6 +16,7 @@ import { settings, quality } from './settings.js';
 import { makeBandMat } from './galaxyshaders.js';
 
 export const NAV = { onInfo:null, onLevel:null };   // set by ui.js
+flyEnv.onExit = () => info();   // leaving free flight in a galaxy or the universe: say where we are again
 const emptyScene = new THREE.Scene();
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const ease = t => t<.5 ? 4*t*t*t : 1-(-2*t+2)**3/2;
@@ -104,10 +105,13 @@ function setLevel(level){
   if (level==='system'){
     setScenes(skyScene, scene);
     controls.zoomSpeed = 1;
+    Object.assign(controls, {enablePan:false, zoomToCursor:false});
     flyEnv.speed = null;
   } else {
     setScenes(level==='galaxy' ? deepScene : emptyScene, level==='galaxy' ? galaxyScene : universeScene);
     controls.zoomSpeed = 2;
+    // explore: scroll zooms towards whatever is under the pointer, right-drag (or Shift-drag) pans
+    Object.assign(controls, {enablePan:true, screenSpacePanning:true, zoomToCursor:true});
     C.focus = null; C.flight = null;
     camera.near = level==='galaxy' ? .02 : .002; camera.far = 1e6; camera.updateProjectionMatrix();
     flyEnv.speed = level==='galaxy' ? () => THREE.MathUtils.clamp(nearStarDist()*.8, .5, G.g.R*.8)
@@ -386,6 +390,11 @@ export function navFrame(dt){
   else controls.update();
   const steps = (settings.quality==='auto' ? quality.auto : settings.quality/100) < .6 ? 28 : 40;
   if (L.level==='galaxy'){
+    // zoomed well out: the view drifts back to centre on the galaxy, so you're never stuck circling one far star
+    if (!F && !C.fly){
+      const D = camera.position.distanceTo(controls.target), k = THREE.MathUtils.smoothstep(D, .5*G.g.R, 2.5*G.g.R);
+      if (k > 0) controls.target.lerp(tmp.set(0, 0, 0), Math.min(1, k*dt*1.5));
+    }
     updateGalaxy(camera, steps);
     renderVolume(camera);
     // backed far enough out: carry on into the universe
@@ -394,8 +403,9 @@ export function navFrame(dt){
     updateUniverse(camera);
     // close enough to a galaxy: carry on into it
     if (!F && !C.fly && !W.phase){
-      const o = UNI.gals[L.gi];
-      if (o && controls.target.distanceTo(o.pos) < o.Ru*.5 && camera.position.distanceTo(o.pos) < 7*o.Ru) enterGalaxy(o.gi, {fromUniverse:true});
+      let o = null, best = Infinity;   // whichever galaxy we've got right up to
+      for (const g of UNI.gals){ const d = camera.position.distanceTo(g.pos)/g.Ru; if (d < best){ best = d; o = g; } }
+      if (o && best < 6.5){ L.gi = o.gi; controls.target.copy(o.pos); enterGalaxy(o.gi, {fromUniverse:true}); }
     }
   }
   tourGalaxy(dt);
