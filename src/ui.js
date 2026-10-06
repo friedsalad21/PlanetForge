@@ -1,7 +1,7 @@
 // Toolbar, keyboard, mouse/touch, the info text and links.
 import * as THREE from 'three';
 import { S, L, opts, flags } from './state.js';
-import { renderer, render, resize, composer } from './scene.js';
+import { renderer, render, resize, composer, camera, controls } from './scene.js';
 import { settings, apply, resetSettings, quality } from './settings.js';
 import { stats } from './perf.js';
 import { rngFor } from './gen.js';
@@ -18,7 +18,7 @@ const nameEl = $('name'), metaEl = $('meta'), seedEl = $('seed'), rarityEl = $('
 
 // --- what's on screen ---
 export function showInfo(b, why){
-  $('sys').hidden = !b && why!=='fly';
+  $('sys').hidden = !b && why!=='fly' && L.gi==null;   // in a galaxy's star system, zooming out goes on to the galaxy
   if (why==='fly'){
     nameEl.textContent = 'Free flight';
     metaEl.textContent = matchMedia('(pointer:coarse)').matches ? 'left stick to move · drag to look · ✕ to stop'
@@ -33,6 +33,7 @@ export function showInfo(b, why){
   rarityEl.textContent = R?.tier && !b ? `◆ ${R.tier} find · a 1 in ${R.n.toLocaleString('en')} combination` : '';
   rarityEl.dataset.tier = R?.tier ?? '';
   hintEl.textContent = b ? 'click empty space or Esc to zoom back out · drag to look around · ? for help'
+    : L.gi!=null ? 'click a planet, moon or star to fly to it · scroll out, Esc or G to go back to the galaxy · ? for help'
     : 'click a planet, moon or star to fly to it · click empty space for a new world · ? for help';
   // for screen readers: say what's on screen now
   const say = `${nameEl.textContent}. ${metaEl.textContent}.${rarityEl.textContent ? ' '+rarityEl.textContent+'.' : ''}`;
@@ -177,7 +178,8 @@ function toggleOrbits(){
 function toggleFly(){ setFly(!C.fly); }
 function zoomOut(){
   if (C.fly) setFly(false, false);
-  if (L.level==='system') systemView(); else navZoomOut();
+  if (L.level==='system'){ if (!C.focus && L.gi!=null && !C.fly) up(); else systemView(); }
+  else navZoomOut();
 }
 function toggleHelp(){ $('helpbox').hidden = !$('helpbox').hidden; $('setbox').hidden = true; $('findbox').hidden = true; }
 
@@ -357,6 +359,9 @@ cv.addEventListener('pointerup', e => {
   else newWorld();
 });
 cv.addEventListener('wheel', e => {
+  // scrolling out past the edge of a star system that's in a galaxy carries on out to the galaxy
+  if (!C.fly && e.deltaY > 0 && L.level==='system' && L.gi!=null && !C.focus && !C.flight && !warping()
+    && camera.position.distanceTo(controls.target) > controls.maxDistance*.97) return up();
   if (!C.fly) return;
   C.speedMul = THREE.MathUtils.clamp(C.speedMul*Math.exp(-e.deltaY*.0015), .05, 30);
   toast(`Speed ×${C.speedMul.toFixed(C.speedMul<1 ? 2 : 1)}`);
