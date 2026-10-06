@@ -139,8 +139,20 @@ export const bodyMat = new THREE.ShaderMaterial({
       // snow/ice texture: drifts and blue-grey tones, plus thin pressure cracks once they're big enough to see
       float iceN=fbm(p*12.+uSeed.zyx,12.);
       vec3 snowCol=mix(uSnow,uSnow*vec3(.8,.89,1.),smoothstep(-.1,.5,iceN));
-      float crack=pow(max(1.-abs(snoise(p*35.+uSeed)),0.),14.)*(1.-smoothstep(.2,.5,gPx*35.));
-      snowCol*=1.-crack*.4;
+      // fractures like Europa's: a few long, gently curving cracks in two crossing families, in patches,
+      // each varying in width and depth (not one even mesh of squiggles)
+      float crack=0.;
+      {
+        vec3 q=p*7.+uSeed.yzx;
+        q+=.25*vec3(snoise(q*.35+2.),snoise(q*.35+5.),snoise(q*.35+8.));
+        float w=mix(.004,.018,smoothstep(-.4,.6,snoise(p*5.+uSeed)));            // width wanders along each crack
+        float c1=1.-smoothstep(0.,w,abs(snoise(q*vec3(1.,.22,1.)))*.25);         // long east-west lines
+        float c2=1.-smoothstep(0.,w*.8,abs(snoise(q.zxy*vec3(1.,.3,.6)+9.))*.25); // a second, crossing set
+        float patchA=smoothstep(.05,.45,snoise(p*2.2+uSeed.zxy)), patchB=smoothstep(.2,.55,snoise(p*2.7-uSeed));
+        crack=max(c1*patchA, c2*patchB*.7)*(.55+.45*smoothstep(-.5,.5,snoise(p*11.+uSeed)));
+        crack*=1.-smoothstep(.3,.8,gPx*60.);                                       // fade out before they'd alias
+      }
+      snowCol=mix(snowCol,snowCol*vec3(.72,.7,.68),crack*.6);
       float slope=1.-dot(n,p);                     // 0 on flat ground
       float moist=snoise(p*2.3+uSeed.yxz)*.65+snoise(p*6.+uSeed)*.35;   // biome patches: wet vs dry lowland
       vec3 lowC=mix(uLow,uLow2,smoothstep(-.3,.3,moist)*uMoist);
