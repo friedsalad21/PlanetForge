@@ -31,7 +31,7 @@ galaxyScene.add(galRoot);
 galRoot.add(selfImpostor, points, nebGroup, visited, hoverMark);
 points.renderOrder = 2; nebGroup.renderOrder = 1;
 // The glow is the most expensive thing on screen, and it's soft anyway: it's ray-marched at half resolution
-// into its own buffer and stretched over the screen (a sphere round the centre, so the galaxy's tilt doesn't matter).
+// into its own buffer and stretched over the screen. (It must keep the galaxy's tilt: see updateGalaxy.)
 const volScene = new THREE.Scene();
 volScene.add(volume);
 const volRT = new THREE.WebGLRenderTarget(2, 2, {type:THREE.HalfFloatType, depthBuffer:false});
@@ -147,6 +147,7 @@ const tmp = new THREE.Vector3(), lc = new THREE.Vector3();
 export function updateGalaxy(camera, steps, px = pxScale.value){
   const g = G.g; if (!g) return;
   galRoot.worldToLocal(lc.copy(camera.position));   // the camera in the galaxy's own frame
+  volume.quaternion.copy(galRoot.quaternion);       // the glow is ray-marched in the galaxy's own (tilted) frame too
   const D = lc.length(), R = g.R;
   u.uCam.value.copy(lc).divideScalar(R);
   let w = THREE.MathUtils.smoothstep(D, 4*R, 6.5*R);          // 0: close (volume), 1: far (impostor)
