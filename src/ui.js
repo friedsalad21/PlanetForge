@@ -8,7 +8,7 @@ import { rngFor } from './gen.js';
 import { build, bodyInfo } from './system.js';
 import { C, flyTo, systemView, setFly, resetCamera, pickAt, keys, addLook, stick, touchBoost } from './camera.js';
 import { NAV, parseAddr, addr, context, enterUniverse, enterGalaxy, enterSystem, useGalaxy, plainSystem, up, newPlace, zoomOut as navZoomOut,
-  click as navClick, hoverAt, warping, resetTours } from './nav.js';
+  click as navClick, hoverAt, warping, warp, resetTours } from './nav.js';
 import { UNI, makeUniverse } from './universe.js';
 import { G } from './galaxy.js';
 import { search } from './search.js';
@@ -61,6 +61,7 @@ NAV.onLevel = () => {
   $('up').textContent = sys ? '✦ Galaxy' : '✦ Universe';
   $('up').title = sys ? (L.gi!=null ? 'Zoom out to the galaxy around this star (G)' : 'Zoom out to a galaxy (G)') : 'Zoom out to the universe (G)';
   $('orb').hidden = !sys;
+  $('worlds').hidden = sys && L.gi==null;
   $('timebar').hidden = !sys || flags.wallpaper;
   $('next').title = sys && L.gi==null ? 'New world (Space or →)' : L.level==='universe' ? 'Fly to a random galaxy (Space or →)' : 'Jump to a random star (Space or →)';
   prevBtn.disabled = depth()===0;
@@ -82,8 +83,8 @@ export function load(seed, bodyId){
   const b = bodyId && S.bodies.find(b => b.id===bodyId);
   if (b) flyTo(b, {instant:true});
 }
-export function newWorld(push = !flags.wallpaper){
-  if (warping()) return;
+export function newWorld(push = !flags.wallpaper, inWarp = false){
+  if (warping() && !inWarp) return;
   if (!flags.wallpaper && (L.level!=='system' || L.gi!=null)) return newPlace();   // in a galaxy: a random star
   const kinds = ['planet','star','blackhole'].filter(k => opts.allow[k]);
   if (flags.wallpaper && opts.allow.galaxy && (!kinds.length || Math.random() < .3)){   // the wallpaper: now and then a galaxy
@@ -237,6 +238,13 @@ async function runFind(){
 }
 findq.addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 250); });
 findq.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); clearTimeout(findTimer); runFind().then(() => findres.querySelector('button')?.click()); } });
+// back to plain random worlds (a warp out of the galaxy, if we're in one)
+function randomWorlds(){
+  if (warping()) return;
+  if (C.fly) setFly(false, false);
+  if (L.level==='system' && L.gi==null) return newWorld();
+  warp(() => { plainSystem(); newWorld(true, true); });
+}
 const randomGalaxy = () => { makeUniverse(L.U); return Math.floor(Math.random()*UNI.gals.length); };
 const uPre = () => L.U===1n ? '' : 'u'+L.U+'.';
 
@@ -273,7 +281,7 @@ for (const [id, fn] of [['prev',()=>history.back()],['next',()=>newWorld()],['sy
   ['settings',toggleSettings],['setclose',toggleSettings],['setreset',()=>{ resetSettings(); syncPanel(); toast('Settings reset'); }],
   ['pause',pause],['slower',slower],['faster',faster],['helpclose',toggleHelp],['flyexit',()=>setFly(false)],
   ['find',toggleFind],['findclose',toggleFind],['findstar',()=>{ findbox.hidden = true; newPlace(); }],
-  ['findgal',()=>goHash(uPre()+'g'+randomGalaxy())],['findhome',()=>goHash('g0')],['finduni',()=>goHash('u'+L.U)]])
+  ['findgal',()=>goHash(uPre()+'g'+randomGalaxy())],['worlds',randomWorlds],['findworld',()=>{ findbox.hidden = true; randomWorlds(); }],['findhome',()=>goHash('g0')],['finduni',()=>goHash('u'+L.U)]])
   $(id).onclick = fn;
 
 const FLY_KEYS = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyC','ShiftLeft','ShiftRight','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -286,7 +294,7 @@ addEventListener('keydown', e=>{
   }
   const act = {
     Space:()=>newWorld(), ArrowRight:()=>newWorld(), ArrowLeft:()=>depth()>0 && history.back(),
-    KeyC:copyLink, KeyS:screenshot, KeyH:toggleUI, KeyO:()=>L.level==='system' && toggleOrbits(), KeyF:toggleFly, KeyG:up,
+    KeyC:copyLink, KeyS:screenshot, KeyH:toggleUI, KeyO:()=>L.level==='system' && toggleOrbits(), KeyF:toggleFly, KeyG:up, KeyW:randomWorlds,
     KeyP:pause, KeyK:pause, Comma:slower, Period:faster, BracketLeft:slower, BracketRight:faster,
     Escape:()=>{ if (!$('helpbox').hidden || !setbox.hidden) closePanels(); else if (document.body.classList.contains('clean')) toggleUI();
       else if (C.fly || C.focus || L.level!=='system') zoomOut(); },

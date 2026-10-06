@@ -553,12 +553,13 @@ export const cometMat = new THREE.ShaderMaterial({
     vCol=ion>.5?uIon:uDust;
     vA=(1.-s)*(1.-s)*uAct*(ion>.5?.07:.045);
     vec4 mv=modelViewMatrix*vec4(p,1.);
-    gl_PointSize=clamp(uScale*uSize*(1.+s*5.)/-mv.z,1.5,48.);
+    float px=min(uScale*uSize*(1.+s*5.)/-mv.z,48.);
+    gl_PointSize=max(px,3.); vA*=min(1.,px*px/9.);   // far away: a soft 3 px blob, not hundreds of stacked square pixels
     gl_Position=projectionMatrix*mv;
   }`,
   fragmentShader:`varying vec3 vCol; varying float vA;
   void main(){
-    float m=exp(-dot(gl_PointCoord-.5,gl_PointCoord-.5)*10.);
+    float m=exp(-dot(gl_PointCoord-.5,gl_PointCoord-.5)*16.);
     gl_FragColor=vec4(vCol*vA*m,1.);
     #include <colorspace_fragment>
   }`,
@@ -569,10 +570,11 @@ export const dotMat = new THREE.ShaderMaterial({
   transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
   uniforms:{ uPx:num(1) },
   vertexShader:`attribute vec3 aCol; attribute vec2 aSz; varying vec3 vCol; varying float vA;
-  void main(){ vCol=aCol; vA=aSz.y; gl_PointSize=aSz.x; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  // at least 4 px wide with a soft round falloff (and dimmed to match), so a tiny dot isn't a square pixel the glow turns into a square
+  void main(){ vCol=aCol; float sz=max(aSz.x,4.); vA=aSz.y*min(1.,aSz.x*aSz.x/16.)*1.6; gl_PointSize=sz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
   fragmentShader:`varying vec3 vCol; varying float vA;
   void main(){
-    float m=1.-smoothstep(.15,.5,length(gl_PointCoord-.5));
+    vec2 q=gl_PointCoord-.5; float m=exp(-dot(q,q)*22.);
     gl_FragColor=vec4(vCol*vA*m,1.);
     #include <colorspace_fragment>
   }`,

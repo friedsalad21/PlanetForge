@@ -83,6 +83,11 @@ Shipped in stages 4a–4f. Old links still open the same worlds: `#123` is a pla
 - [x] Find (/): search galaxies, nebulae and every star of the current galaxy by name; go to a seed or link; random star, random galaxy, home galaxy
 - [x] Visited stars are remembered and ringed in the galaxy view (the galaxy view is the map)
 - [x] Galaxy shaders compiled in the background with the rest, and automatic quality covers the new views
+- [x] The galaxy glow is ray-marched at half resolution (it's soft anyway), so galaxy views cost far less
+- [x] Dwarf galaxies (most galaxies are small), red faded spirals and blue starbursts; irregulars as clumpy star clouds
+- [x] Star-forming knots and irregular star clouds drawn as a crisp mid-plane layer (no streaks from any angle)
+- [x] The cosmic web: faint gas along the universe's filaments and clusters; visited galaxies ringed, the one under the pointer highlighted
+- [x] ⌂ Random worlds (W): leave the galaxies and go back to plain random worlds
 
 Still open from phase 4:
 
@@ -167,4 +172,5 @@ Still open from phase 4:
 - [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds, phase 6 planet visuals and phase 10 quality of life (above)
 - [x] Fixed black flickering (NaN pixels from a few shaders, plus a clean-up pass before the bloom)
 - [x] Phase 4: galaxies and the universe (above)
+- [x] Backdrop nebulae in natural colours (no more green haze); distant dots, star points and far comet tails are soft round blobs instead of squares in the glow
 - [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles

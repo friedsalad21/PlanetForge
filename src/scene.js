@@ -51,7 +51,15 @@ skyScene.add(new THREE.Mesh(new THREE.SphereGeometry(150,32,32), nebulaMat));
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos,3));
   g.setAttribute('color', new THREE.BufferAttribute(col,3));
-  skyScene.add(new THREE.Points(g, new THREE.PointsMaterial({size:1.5, sizeAttenuation:false, vertexColors:true})));
+  // round soft points (a 1–2 px square would turn into a square halo in the glow)
+  skyScene.add(new THREE.Points(g, new THREE.ShaderMaterial({
+    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, uniforms:{ size:{value:1.5} },
+    vertexShader:`attribute vec3 color; uniform float size; varying vec3 vC;
+    void main(){ vC=color*min(1.,size*size/9.)*1.5; gl_PointSize=max(size,3.); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader:`varying vec3 vC; void main(){ vec2 q=gl_PointCoord-.5; gl_FragColor=vec4(vC*exp(-dot(q,q)*20.),1.);
+      #include <colorspace_fragment>
+    }`,
+  })));
 }
 
 export function glowTexture(stops){

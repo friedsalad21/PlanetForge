@@ -9,8 +9,8 @@ import { S, L, opts, flags } from './state.js';
 import { camera, controls, skyCamera, skyScene, scene, setScenes, warpPass, renderer, pxScale } from './scene.js';
 import { build, refreshSky } from './system.js';
 import { C, resetCamera, flyTo, systemView, autoDist, flyEnv, updateFly, setFly } from './camera.js';
-import { galaxyScene, galRoot, G, showGalaxy, updateGalaxy, pickGalaxy, placeInfo, placeWorld, setHover, setVisited, lyFromCore } from './galaxy.js';
-import { universeScene, deepScene, UNI, makeUniverse, setDeepFrom, updateUniverse, pickUniverse, GU_PER_UU } from './universe.js';
+import { galaxyScene, galRoot, G, renderVolume, withFullVolume, showGalaxy, updateGalaxy, pickGalaxy, placeInfo, placeWorld, setHover, setVisited, lyFromCore } from './galaxy.js';
+import { universeScene, deepScene, UNI, makeUniverse, setDeepFrom, updateUniverse, pickUniverse, GU_PER_UU, setGalaxyHover, markGalaxyVisited } from './universe.js';
 import { starSeed, nebulaSeed, STYPES } from './galaxymodel.js';
 import { settings, quality } from './settings.js';
 import { makeBandMat } from './galaxyshaders.js';
@@ -50,7 +50,7 @@ function commit(push = true){
 // --- the warp jump ---
 const W = { phase:null, t:0, mid:null, inDur:.7, outDur:1 };
 export const warping = () => !!W.phase;
-function warp(mid, {inDur = .7, outDur = 1.1} = {}){
+export function warp(mid, {inDur = .7, outDur = 1.1} = {}){
   if (opts.reducedMotion){ mid(); return; }   // a straight cut
   Object.assign(W, {phase:'in', t:0, mid, inDur, outDur});
   warpPass.enabled = true;
@@ -114,7 +114,7 @@ function setLevel(level){
       : () => THREE.MathUtils.clamp(camera.position.distanceTo(controls.target)*.4, .2, 200);
   }
   skyCamera.far = 10000; skyCamera.updateProjectionMatrix();
-  setHover(null);
+  setHover(null); setGalaxyHover(null);
   NAV.onLevel?.();
 }
 function nearStarDist(){ return Math.max(1, Math.min(camera.position.distanceTo(controls.target), camera.position.length()*.15)); }
@@ -167,6 +167,7 @@ export function useGalaxy(gi){
   setDeepFrom(gi);
   L.gi = gi;
   refreshVisited();
+  if (!flags.wallpaper) markGalaxyVisited(gi);
   return o;
 }
 export function enterGalaxy(gi, {fromUniverse = false, star = null, instant = false} = {}){
@@ -295,7 +296,7 @@ function renderBand(p){
   bandCam.updateMatrixWorld(true);
   updateGalaxy(bandCam, 64, bandRT.width/2);   // (a cube face is 90° wide)
   setHover(null);
-  bandCam.update(renderer, galaxyScene);
+  withFullVolume(() => bandCam.update(renderer, galaxyScene));
   bandCam.removeFromParent();
   bandMesh.visible = true;
   if (S.mode==='blackhole') refreshSky();
@@ -304,6 +305,7 @@ export function plainSystem(){   // a plain seed: no galaxy around it
   L.gi = null; L.place = null; pending = null; F = null;
   if (bandMesh) bandMesh.visible = false;
   if (L.level!=='system') setLevel('system');
+  NAV.onLevel?.();
 }
 
 // --- visited stars, remembered in the browser ---
@@ -368,6 +370,7 @@ export function hoverAt(cx, cy){
   }
   if (L.level==='universe'){
     const o = pickUniverse(cx, cy, camera, rect, renderer.getPixelRatio());
+    setGalaxyHover(o, camera);
     return o ? o.g.name[0].toUpperCase()+o.g.name.slice(1)+' · '+o.g.label.toLowerCase() : null;
   }
   return null;
@@ -384,6 +387,7 @@ export function navFrame(dt){
   const steps = (settings.quality==='auto' ? quality.auto : settings.quality/100) < .6 ? 28 : 40;
   if (L.level==='galaxy'){
     updateGalaxy(camera, steps);
+    renderVolume(camera);
     // backed far enough out: carry on into the universe
     if (!F && !C.fly && !W.phase && camera.position.length() > 8.4*G.g.R) enterUniverse();
   } else {

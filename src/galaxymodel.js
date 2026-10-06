@@ -62,11 +62,20 @@ export function galaxyParams(seed, home = false){
   };
   if (home){ g.arms = 4; g.bar = .2; g.kind = 'barred'; g.pitch = .36; }
   if (type==='elliptical'){ g.rb = .16+r()*.12; g.flat = .45+r()*.5; g.dust = 0; g.core = c(.08+r()*.03, .5+r()*.3, .7); }
-  if (type==='irregular'){ g.hz = .05+r()*.03; g.R *= .55; g.hR = .45; g.rb = .03; g.dust = .5; }
+  if (type==='irregular'){ g.hz = .03+r()*.02; g.R *= .55; g.hR = .45; g.rb = .03; g.dust = .5; }
+  // drawn from a second stream so the rolls above keep their values
+  const x = rngFor(seed ^ 0x2545f4914f6cdd1dn);
+  g.dwarf = !home && x() < (type==='irregular' ? .6 : type==='elliptical' ? .4 : .25);   // most galaxies are small
+  if (g.dwarf){ g.R *= .3+x()*.2; if (type==='spiral') g.arms = Math.min(g.arms, 2+Math.floor(x()*2)); }
+  const tint = home ? .5 : x();   // a few red, dead spirals and blue starbursts
+  if (type==='spiral' && tint < .12){ g.arm = c(.08, .35, .66); g.hii.multiplyScalar(.3); g.dead = true; }
+  if (tint > .9){ g.arm = c(.6, .55, .72); g.hii = c(.93, .8, .66); g.starburst = true; }
   g.r0 = g.bar || g.rb*1.6;
   g.name = home ? 'the Forge' : galaxyName(r, type);
   g.home = home;
-  g.label = home ? 'Barred spiral galaxy (home)' : {spiral:'Spiral galaxy', barred:'Barred spiral galaxy', elliptical:'Elliptical galaxy', irregular:'Irregular galaxy'}[kind];
+  g.label = home ? 'Barred spiral galaxy (home)' : (g.dwarf ? 'Dwarf ' : '')+{spiral:'spiral galaxy', barred:'barred spiral galaxy', elliptical:'elliptical galaxy', irregular:'irregular galaxy'}[kind]
+    +(g.dead ? ' (no new stars)' : g.starburst ? ' (starburst)' : '');
+  g.label = g.label[0].toUpperCase()+g.label.slice(1);
   return g;
 }
 
@@ -108,7 +117,7 @@ export function makeStars(g){
   const r = rngFor(g.seed ^ 0x5bd1e995n);
   const gauss = () => Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r());
   const laplace = () => (r()<.5 ? 1 : -1)*Math.log(1/(r()+1e-12));
-  const N = g.type==='elliptical' ? 110000 : g.type==='irregular' ? 60000 : 150000;
+  const N = Math.round((g.type==='elliptical' ? 110000 : g.type==='irregular' ? 60000 : 150000)*(g.dwarf ? .3 : 1));
   const pos = new Float32Array(N*3), type = new Uint8Array(N);
   let n = 0;
   const put = (x, y, z, t) => { if (n>=N) return; pos[n*3] = x*g.R; pos[n*3+1] = y*g.R; pos[n*3+2] = z*g.R; type[n++] = t; };

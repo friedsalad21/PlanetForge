@@ -4,8 +4,8 @@
 
 Procedural space in the browser, built with three.js. Every world comes from a 64-bit seed in the URL, so any world, and any planet or moon in it, can be shared by its link. Zoom out and the star you're at is one of 150,000 in a galaxy, and the galaxy is one of 800 in a universe: every one of them generated from seeds, nothing stored.
 
-- **Galaxies:** spirals with two to five arms, barred spirals, ellipticals and irregular clouds, drawn as a ray-marched glow with dust lanes, a bright bulge and pink star-forming knots, plus every star as a point of light. Click any star to fly there and warp into its star system. Fly into nebulae (they hold young systems still forming), visit the supermassive black hole at the centre, find globular clusters in the halo. Inside a galaxy, a star system's sky shows the galaxy's band of light from where that star really is.
-- **The universe:** 800 galaxies in clusters and filaments. Fly into any of them without a break, and back out again by zooming away.
+- **Galaxies:** spirals with two to five arms, barred spirals, ellipticals and clumpy irregular clouds, from giants to dwarfs (and the odd starburst or faded spiral), drawn as a ray-marched glow with dust lanes, a bright bulge and pink star-forming knots, plus every star as a point of light. Click any star to fly there and warp into its star system. Fly into nebulae (they hold young systems still forming), visit the supermassive black hole at the centre, find globular clusters in the halo. Inside a galaxy, a star system's sky shows the galaxy's band of light from where that star really is.
+- **The universe:** 800 galaxies in clusters and filaments, strung on a faint glowing cosmic web. Fly into any of them without a break, and back out again by zooming away. Galaxies you've been to are ringed. **⌂ Random worlds** (W) takes you back out to random worlds of their own.
 - **Explore:** click any planet, moon, star, comet or space station to fly to it and orbit it as it moves. Or fly freely with W A S D and the mouse (or the on-screen stick on a phone).
 - **Real orbits:** elliptical, tilted Kepler orbits. Inner planets go round faster, binary stars swing round their shared centre of mass, moons always keep one face to their planet, and tilted planets have seasons on their ice caps. You can pause, slow down or fast-forward time.
 - **Planets:** 31 types, from Earth-like and ocean worlds to canyons, crystal worlds, tidally locked eyeballs, Venus-like cloud worlds, ice giants and hot Jupiters. Rivers and lakes, volcanoes with lava flows and ash plumes, lightning, waves and sun glint, snow and ice. Crystal worlds come in four looks (prismatic, geode fields, glass seas, ice spires). Clouds have two layers with crisp, wind-eroded edges that shade themselves. Inhabited worlds light up at night with sprawling cities joined by roads, not blobs. The air is ray-marched, so the limb glows blue and the terminator turns orange. Auroras form rings around each world's magnetic poles, which on ice giants can be tipped far from the spin axis.
@@ -30,6 +30,7 @@ What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, lan
 | Drag / scroll | Look around / zoom |
 | Space / → | New world (in a galaxy: a random star; in the universe: a random galaxy) |
 | G | Zoom out a level: star system → its galaxy → the universe |
+| W | Leave the galaxies: back to random worlds |
 | / | Find a star, nebula or galaxy by name, or go to a seed or link |
 | ← / browser Back | Previous world |
 | P · , . | Pause · slower / faster time |

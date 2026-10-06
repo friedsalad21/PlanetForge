@@ -36,20 +36,39 @@ vec3 diskEmit(vec3 p, Gal g, out float dust){
   vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));   // irregulars are thick: shear the noise with height so it isn't extruded
   float n=fbm2(sh*14.,g.seed+7u);
   float vert=exp(-abs(p.y)/g.hz)/(2.*g.hz);
-  float disk=(g.t>1.5 ? exp(-r/g.hR)*(.05+.8*a) : exp(-r/g.hR))*vert*(1.-smoothstep(1.25,1.9,r));
-  vec3 old=mix(g.core,vec3(1.,.92,.8),smoothstep(.05,.9,r));
-  vec3 e=disk*(old*(.28+.5*a)*(.6+.8*n)+g.arm*a*1.6*(.25+n));
-  float hv=exp(-abs(p.y)/(g.hz*.6))/(1.2*g.hz);                                 // (a thinner layer than the stars)
-  float kn=a>.45 ? vnoise(sh*85.,g.seed+3u)*.65+vnoise(sh*170.,g.seed+5u)*.35 : 0.;
-  if(a>.45) e+=g.hii*exp(-r/g.hR)*hv*smoothstep(.45,.8,a)*smoothstep(.7,.88,kn)*6.;   // pink star-forming knots
+  float fade=1.-smoothstep(1.25,1.9,r);
+  vec3 old=mix(g.core,vec3(1.,.92,.8),smoothstep(.05,.9,r)), e;
+  if(g.t>1.5){
+    // irregular: a faint haze with bright clumpy star clouds, mostly young and blue
+    // (its bright star clouds are a mid-plane layer, added with the knots, so they stay crisp at any angle)
+    e=exp(-r/g.hR)*vert*fade*(old*(.05+.25*a)*(.6+.8*n)+g.arm*.15*a);
+  } else {
+    float disk=exp(-r/g.hR)*vert*fade;
+    e=disk*(old*(.28+.5*a)*(.6+.8*n)+g.arm*a*1.6*(.25+n));
+  }
   if(g.bar>0.){                                                                 // the bar
     float b=exp(-(p.x*p.x)/(g.bar*g.bar*.3)-(p.z*p.z)/(g.bar*g.bar*.03));
     e+=old*b*exp(-abs(p.y)/(g.hz*2.5))/(5.*g.hz)*1.4;
   }
-  dust=g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22;
+  dust=g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22*(g.t>1.5 ? .35 : 1.);
   if(g.t>.5 && g.t<1.5) { e=vec3(0.); dust=0.; }
   return e;
 }
+// pink star-forming knots: a thin layer, so they're drawn where the ray crosses the mid-plane (crisp from any angle)
+vec3 knots(vec2 q, Gal g){
+  if(g.t>.5&&g.t<1.5) return vec3(0.);
+  float r=length(q), a=g.t>1.5 ? irrOf(q,g) : pow(.5+.5*cos(armPhase(q,g)),g.sharp)*smoothstep(g.r0*.5,g.r0*1.3,r);
+  if(a<.45) return vec3(0.);
+  float kn=vnoise(q*85.,g.seed+3u)*.65+vnoise(q*170.,g.seed+5u)*.35;
+  float irr=g.t>1.5 ? 1. : 0.;
+  vec3 clouds=vec3(0.);
+  if(irr>0.){
+    float cl=smoothstep(.45,.85,fbm2(q*5.,g.seed+13u))*a, fine=fbm2(q*22.,g.seed+17u);
+    clouds=g.arm*2.2*cl*(.5+fine)*exp(-r/g.hR)*(1.-smoothstep(1.25,1.9,r));
+  }
+  return clouds+g.hii*exp(-r/g.hR)*smoothstep(.45,.8,a)*smoothstep(mix(.7,.8,irr),mix(.88,.95,irr),kn)*mix(6.,4.,irr)*(1.-smoothstep(1.25,1.9,r));
+}
+float knotPath(vec3 d, Gal g){ return min(1./max(abs(d.y),1e-3),1./(1.2*g.hz)); }
 // just the dust (for dimming stars behind it): the same as diskEmit's, without the light
 float dustAt(vec3 p, Gal g){
   if(g.t>.5&&g.t<1.5) return 0.;
@@ -57,7 +76,7 @@ float dustAt(vec3 p, Gal g){
   if(g.t<1.5) da=pow(.5+.5*cos(armPhase(p.xz,g)-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r);
   vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));
   float n=fbm2(sh*14.,g.seed+7u);
-  return g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22;
+  return g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22*(g.t>1.5 ? .35 : 1.);
 }
 
 float erf_(float x){
@@ -123,6 +142,7 @@ export function makeVolumeMat(u){
       vec3 sc=vec3(1.,1./g.flt,1.);
       float tc=max(0.,-dot(o*sc,d*sc)/dot(d*sc,d*sc)), Tc=1., T=1.;
       vec3 col=vec3(0.);
+      float tx=abs(d.y)>1e-6 ? -o.y/d.y : -1., Tx=1.;                  // where the ray crosses the mid-plane
       if(tb>ta){
         float dt=(tb-ta)/float(uSteps), j=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
         for(int i=0;i<128;i++){
@@ -131,8 +151,10 @@ export function makeVolumeMat(u){
           vec3 e=diskEmit(o+d*t,g,du);
           col+=T*e*dt; T*=exp(-du*dt);
           if(t<tc) Tc=T;
+          if(t<tx) Tx=T;
         }
       }
+      if(tx>ts0 && tx<ts1 && (g.t<.5||g.t>1.5)) col+=Tx*knots((o+d*tx).xz,g)*knotPath(d,g);
       col+=bulgeLight(o,d,tc,Tc,g);
       col=(1.-exp(-pow(col*uExposure,vec3(uGamma))))*uBright*uFade;   // (uGamma > 1 inside the disk: a dark sky with a bright band)
       col+=(fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5)/255.;   // dither: no banding in the smooth glow
@@ -154,7 +176,7 @@ export function makeStarPointsMat(u){
       float d=max(-mv.z,1e-4);
       float px=.06*sqrt(aLum)*uPx/d;              // glow radius in pixels
       // stars too far to pick out fade fast: their light is already in the glow, and thousands of faint dots would grey the sky
-      float I=min(1.,pow(px/1.6,4.))+uFloor*min(aLum,8.)/8.;
+      float I=min(1.,pow(px/1.6,4.))+uFloor*smoothstep(18.,30.,aLum);   // (uFloor: only the brightest young stars sparkle from afar)
       // dust between us and the star
       vec3 p=position/uScale, o=uCam; float tau=0.;
       if(I>.004){ for(int i=0;i<5;i++) tau+=dustAt(mix(o,p,(float(i)+.5)/5.),galU()); tau*=length(p-o)/5.; }
@@ -166,13 +188,13 @@ export function makeStarPointsMat(u){
       gl_Position=projectionMatrix*mv;
       if(I<.004) gl_Position=vec4(2.,2.,2.,1.);
     }`,
-    fragmentShader:`uniform float uBright,uFade; varying vec3 vC; varying float vS;
+    fragmentShader:`uniform float uBright,uFade,uMaxPx; varying vec3 vC; varying float vS;
     void main(){
       vec2 q=gl_PointCoord*2.-1.; float r2=dot(q,q);
       if(r2>1.) discard;
-      float k=9.;                                  // core + soft halo, with faint diffraction spikes on the bright ones
-      float a=exp(-r2*k)+.12*exp(-r2*2.5);
-      a+=smoothstep(14.,40.,vS)*.35*(exp(-abs(q.x)*40.)+exp(-abs(q.y)*40.))*(1.-sqrt(r2));
+      float big=step(40.,uMaxPx);                  // (none of the extras in a star system's low-res sky)
+      float a=exp(-r2*9.)+.12*big*exp(-r2*2.5);    // core + soft halo, with faint diffraction spikes on the bright ones
+      a+=big*smoothstep(14.,40.,vS)*.35*(exp(-abs(q.x)*40.)+exp(-abs(q.y)*40.))*(1.-sqrt(r2));
       gl_FragColor=vec4(vC*a*uBright*uFade,1.);
       #include <colorspace_fragment>
     }`,
@@ -234,16 +256,16 @@ export function makeNebulaVolMat(){
 export function makeImpostorMat(){
   return new THREE.ShaderMaterial({
     transparent:true, depthTest:false, depthWrite:false, blending:THREE.AdditiveBlending,
-    uniforms:{ uPx:num(600), uBright:num(1), uFade:num(1), uMinPx:num(1.5), uCamL:{value:new THREE.Vector3()} },
+    uniforms:{ uPx:num(600), uBright:num(1), uFade:num(1), uMinPx:num(1.5), uCull:num(0), uCamL:{value:new THREE.Vector3()} },
     vertexShader:`attribute vec3 aPos; attribute vec4 aQuat, aP1, aP2, aP3; attribute vec3 aCore, aArm, aHii; attribute float aHide, aSeed;
-    uniform float uPx, uMinPx; uniform vec3 uCamL;   // the camera in this mesh's own frame
+    uniform float uPx, uMinPx, uCull; uniform vec3 uCamL;   // the camera in this mesh's own frame
     varying vec3 vO, vP; flat out vec4 vP1, vP2, vP3; flat out vec3 vCore, vArm, vHii; flat out float vSeed; varying float vDim;
     vec3 rotInv(vec4 q, vec3 v){ q.xyz=-q.xyz; vec3 t=2.*cross(q.xyz,v); return v+q.w*t+cross(q.xyz,t); }
     void main(){
       float R=aP3.z, ext=R*(aP1.x>.5&&aP1.x<1.5 ? 1.3 : 2.);         // half-size of the quad
       vec3 toCam=uCamL-aPos; float dist=length(toCam);
       float px=ext*uPx/dist, grow=max(1.,uMinPx*2./max(px,1e-4));      // tiny ones stay at least a couple of pixels
-      vDim=1./(grow*grow);
+      vDim=1./(grow*grow)*(uCull>0. ? smoothstep(uCull*.4,uCull,px) : 1.);   // (uCull: the sky keeps only the bigger ones)
       vec3 fwd=toCam/dist, side=normalize(cross(abs(fwd.y)<.99?vec3(0,1,0):vec3(1,0,0),fwd)), up=cross(fwd,side);
       vec3 w=aPos+(side*position.x+up*position.y)*ext*grow;
       vO=rotInv(aQuat,uCamL-aPos)/R; vP=rotInv(aQuat,w-aPos)/R;
@@ -265,7 +287,7 @@ export function makeImpostorMat(){
         if(t>0.){
           vec3 p=o+d*t; p.y=0.; float du;
           float path=min(1./max(abs(d.y),1e-3),g.t>1.5 ? 2.5 : 1./(2.*g.hz));   // slant path through the disk, capped edge-on
-          col+=diskEmit(p,g,du)*2.*g.hz*path;
+          col+=diskEmit(p,g,du)*2.*g.hz*path+knots(p.xz,g)*knotPath(d,g);
           if(t<tc) Tc=exp(-du*2.*g.hz*path);
         }
       }

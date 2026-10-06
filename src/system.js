@@ -40,6 +40,9 @@ function makeStar(St, r){
   return {...St, mesh, corona, mass, lum, light:St.col.clone().lerp(WHITE,.45), bright:1};
 }
 
+const NEB_HUES = [[.98,.75,.48],[.95,.6,.55],[.52,.65,.45],[.6,.7,.5],[.64,.6,.55],[.07,.7,.5],[.75,.55,.5],[.9,.55,.55]];
+function nebulaCol(h){ const [hh,s,l] = NEB_HUES[Math.floor(h*NEB_HUES.length)]; return c(hh+(h*NEB_HUES.length%1-.5)*.04, s, l); }
+
 // --- body registry: everything the camera can visit ---
 function addBody(b){ b.id ??= 'b'+S.bodies.length; S.bodies.push(b); return b; }
 export function bodyRadius(b){ return b.obj.getWorldScale(tmp).x*b.localR; }
@@ -81,9 +84,12 @@ export function build(seed, o = {}){
 
   tilt.rotation.z = r()*.45;
   nebulaMat.uniforms.uSeed.value.set(r()*50,r()*50,r()*50);
-  nebulaMat.uniforms.uA.value.copy(c(r(),.7,.5)); nebulaMat.uniforms.uB.value.copy(c(r(),.7,.5));
+  // the colours real nebulae come in (hydrogen red and pink, oxygen teal, reflection blue, dusty orange,
+  // violet where they mix), not any hue at all: the same two rolls as before, so seeds keep their worlds
+  const hA = r(), hB = r();
+  nebulaMat.uniforms.uA.value.copy(nebulaCol(hA)); nebulaMat.uniforms.uB.value.copy(nebulaCol(hB));
   nebulaMat.userData.density = .3+r()*1.2;
-  if (o.mode) nebulaMat.userData.density *= .45;   // in a galaxy the Milky Way band is the main backdrop
+  if (o.mode) nebulaMat.userData.density *= .12;   // in a galaxy the galaxy's own band is the backdrop
   if (S.stars.some(s => s.name==='protostar')) nebulaMat.userData.density = 1.6+x();   // young stars sit in thick nebulae
   if (o.nebula){
     nebulaMat.uniforms.uA.value.copy(o.nebula.a); nebulaMat.uniforms.uB.value.copy(o.nebula.b);
@@ -340,10 +346,10 @@ function buildBlackHole(r, x){
 export function refreshSky(){
   if (!cubeCam) return;
   const vis = sunSprite.visible; sunSprite.visible = false;
-  const pts = skyScene.children.find(o => o.isPoints), size = pts.material.size;
-  pts.material.size = 1;   // one texel per star, so lensed stars stay sharp points
+  const pts = skyScene.children.find(o => o.isPoints), su = pts.material.uniforms.size, size = su.value;
+  su.value = 1;   // small, so lensed stars stay sharp points
   cubeCam.update(renderer, skyScene);
-  pts.material.size = size; sunSprite.visible = vis;
+  su.value = size; sunSprite.visible = vis;
 }
 
 // --- names ---

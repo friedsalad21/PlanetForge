@@ -28,8 +28,37 @@ hoverMark.visible = false;
 // the galaxy keeps the tilt it has in the universe, so moving between the two views needs no turn of the camera
 export const galRoot = new THREE.Group();
 galaxyScene.add(galRoot);
-galRoot.add(selfImpostor, volume, points, nebGroup, visited, hoverMark);
-volume.renderOrder = 0; points.renderOrder = 2; nebGroup.renderOrder = 1;
+galRoot.add(selfImpostor, points, nebGroup, visited, hoverMark);
+points.renderOrder = 2; nebGroup.renderOrder = 1;
+// The glow is the most expensive thing on screen, and it's soft anyway: it's ray-marched at half resolution
+// into its own buffer and stretched over the screen (a sphere round the centre, so the galaxy's tilt doesn't matter).
+const volScene = new THREE.Scene();
+volScene.add(volume);
+const volRT = new THREE.WebGLRenderTarget(2, 2, {type:THREE.HalfFloatType, depthBuffer:false});
+const volQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  depthTest:false, depthWrite:false, transparent:true, blending:THREE.AdditiveBlending,
+  uniforms:{ tVol:{value:volRT.texture} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+  fragmentShader:`uniform sampler2D tVol; varying vec2 vUv; void main(){ gl_FragColor=vec4(texture2D(tVol,vUv).rgb,1.); }`,
+}));
+volQuad.frustumCulled = false; volQuad.renderOrder = -1;
+galaxyScene.add(volQuad);
+const bufSize = new THREE.Vector2();
+export function renderVolume(camera){
+  volQuad.visible = volume.visible;
+  if (!volume.visible) return;
+  renderer.getDrawingBufferSize(bufSize);
+  const w = Math.max(2, Math.ceil(bufSize.x/2)), h = Math.max(2, Math.ceil(bufSize.y/2));
+  if (volRT.width!==w || volRT.height!==h) volRT.setSize(w, h);
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(volRT); renderer.clear(); renderer.render(volScene, camera);
+  renderer.setRenderTarget(prev);
+}
+// a cube camera (a star system's sky) renders the glow at full quality, straight into its faces
+export function withFullVolume(fn){
+  galaxyScene.add(volume); volQuad.visible = false;
+  try { fn(); } finally { volScene.add(volume); }
+}
 
 export const G = { g:null, stars:null, names:new Map(), force:null };
 const cache = new Map();   // galaxies already generated this session (stars take a moment to sample)
@@ -128,8 +157,8 @@ export function updateGalaxy(camera, steps, px = pxScale.value){
   selfImpostor.material.uniforms.uCamL.value.copy(lc);
   ptsMat.uniforms.uFade.value = 1-THREE.MathUtils.smoothstep(D, 3*R, 7*R); points.visible = D < 7*R;
   ptsMat.uniforms.uPx.value = px;
-  ptsMat.uniforms.uMaxPx.value = px===pxScale.value ? 96 : 14;   // (smaller in a star system's sky, which is a low-res cube map)
-  ptsMat.uniforms.uFloor.value = .0;
+  ptsMat.uniforms.uMaxPx.value = px===pxScale.value ? 96 : 7;   // (smaller in a star system's sky, which is a low-res cube map)
+  ptsMat.uniforms.uFloor.value = THREE.MathUtils.smoothstep(D, 1.2*R, 2.5*R)*.05;   // from outside, the brightest stars sparkle a little
   volMat.uniforms.uSteps.value = steps;
   // like an eye adjusting: seen from outside the galaxy is bright, but from inside the disk its light is spread
   // over the whole sky, so add contrast there (the band stays bright, the rest goes dark)
