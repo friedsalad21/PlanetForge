@@ -69,8 +69,11 @@ vec3 rotAround(vec3 v, vec3 k, float a){ float c=cos(a), s=sin(a); return v*c+cr
 // ring density as a function of t (0 = inner edge, 1 = outer edge); shared by the ring itself,
 // the shadow it casts on the planet and clouds, and the ring particles, so their gaps all line up
 export const RINGFN = `
-float h1(float x){return fract(sin(x*127.1)*43758.5);}
-float n1(float x){float i=floor(x);return mix(h1(i),h1(i+1.),smoothstep(0.,1.,fract(x)));}
+// 1D value noise from an exact integer hash. (The old fract(sin(x)) hash breaks down on many GPUs once x gets big,
+// which turned fine ringlets into blocks and hard lines.) Period 8192, so callers can wrap x and stay seamless.
+uint rhash(uint v){ uint s=v*747796405u+2891336453u; uint w=((s>>((s>>28u)+4u))^s)*277803737u; return (w>>22u)^w; }
+float h1(float x){ return float(rhash(uint(mod(x,8192.))))*(1./4294967295.); }
+float n1(float x){ x=mod(x,8192.); float i=floor(x); return mix(h1(i),h1(i+1.),smoothstep(0.,1.,x-i)); }
 float ringBands(float t, vec3 K){ return n1(t*K.x)*.5+n1(t*K.y+9.)*.3+n1(t*K.z+3.)*.2; }
 float ringAlpha(float t, float b, vec2 gaps, float dust){
   float gap=smoothstep(.0,.03,abs(t-gaps.x))*smoothstep(.0,.015,abs(t-gaps.y));   // Cassini-style gaps

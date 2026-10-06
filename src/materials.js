@@ -391,7 +391,7 @@ export const ringMat = new THREE.ShaderMaterial({
     for(int i=0;i<12;i++){
       float w=1.-smoothstep(.35,.75,px);                        // keep fine ringlets even at grazing angles
       if(w<=0.) break;
-      s+=a*w*n1(x); norm+=a*w; x=x*2.13+5.7; px*=2.13; a*=.6;
+      s+=a*w*n1(x); norm+=a*w; x=mod(x*2.13+5.7,8192.); px*=2.13; a*=.6;   // (wrapped: n1 repeats every 8192)
     }
     return s/max(norm,1e-4);
   }
@@ -400,10 +400,11 @@ export const ringMat = new THREE.ShaderMaterial({
     float b=ringBands(t,uK);                                    // main band structure
     b*=1.+(ringlets(t*uK.x*5.,ft*uK.x*5.)-.5)*.9;              // fine ringlets, sharper as you zoom in
     // up close: grainy ice-particle sparkle in the ring plane
-    float k=600., grain=fract(sin(dot(floor(vP.xy*k),vec2(12.9898,78.233)))*43758.5);
+    float k=600.; ivec2 gc=ivec2(floor(vP.xy*k))+ivec2(65536);
+    float grain=float(rhash(uint(gc.x)*1597334677u^rhash(uint(gc.y))))*(1./4294967295.);
     b*=1.+(grain-.5)*.5*(1.-smoothstep(.3,.8,length(fwidth(vP.xy))*k));
     float a=ringAlpha(t,b,uGaps,uDust);                         // sparse bands go see-through
-    float shadow=(dot(vP,uSunL)<0. && length(cross(vP,uSunL))<1.)?.08:1.;   // planet's shadow on the ring
+    float shadow=dot(vP,uSunL)<0. ? mix(.08,1.,smoothstep(.97,1.03,length(cross(vP,uSunL)))) : 1.;   // planet's shadow on the ring, soft-edged
     // seen from the sunlit face the ring reflects; from the dark face only thin parts glow with light passing through
     float sideS=uSunL.z, sideV=uCamL.z;
     // looking towards the sun through the ring, thin parts light up (sunlight scattered forwards by the ice)
