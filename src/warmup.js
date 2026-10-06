@@ -1,7 +1,9 @@
 // After the first world is up, quietly compile the shaders every other kind of world uses
 // (black holes, nebulae, comets, stations...), so meeting one later doesn't stutter.
 import * as THREE from 'three';
-import { renderer, scene, camera, composer } from './scene.js';
+import { renderer, scene, camera, composer, warpPass } from './scene.js';
+import { galaxyScene } from './galaxy.js';
+import { universeScene, deepScene } from './universe.js';
 import * as M from './materials.js';
 
 export async function warmUp(){
@@ -14,8 +16,12 @@ export async function warmUp(){
     const a = M.atmoMat.clone(); a.side = side; add(a);
   }
   for (const mat of [M.ringPtsMat, M.cometMat, M.dotMat]){ const p = new THREE.Points(geo, mat); p.frustumCulled = false; group.add(p); }
+  add(warpPass.material);   // the jump between stars
   renderer.setRenderTarget(composer.renderTarget1);
-  try { await renderer.compileAsync(group, camera, scene); } catch {}
+  try {
+    await renderer.compileAsync(group, camera, scene);
+    for (const s of [galaxyScene, deepScene, universeScene]) await renderer.compileAsync(s, camera);   // galaxies and the universe
+  } catch {}
   renderer.setRenderTarget(null);
   geo.dispose();
 }

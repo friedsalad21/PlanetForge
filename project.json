@@ -3,7 +3,7 @@
 	"preview" : "preview.jpg",
 	"title" : "PlanetForge",
 	"type" : "web",
-	"description" : "Procedurally generated planets, star systems and black holes, with a slow tour from body to body. A new world every few minutes.",
+	"description" : "Procedurally generated planets, star systems, black holes and whole galaxies, with a slow tour from body to body. A new world every few minutes.",
 	"general" : {
 		"supportsaudioprocessing" : false,
 		"properties" : {
@@ -34,121 +34,126 @@
 				"text" : "Show black holes",
 				"type" : "bool", "value" : true
 			},
-			"seed" : {
+			"showgalaxies" : {
 				"order" : 5,
-				"text" : "Fixed seed (blank = random worlds)",
+				"text" : "Show galaxies (drift through one, now and then dive into a star system)",
+				"type" : "bool", "value" : true
+			},
+			"seed" : {
+				"order" : 6,
+				"text" : "Fixed seed or link (blank = random worlds; e.g. 123, g0 for the home galaxy, g0.s1234 for a star)",
 				"type" : "textinput", "value" : ""
 			},
 			"zoom" : {
-				"order" : 6,
+				"order" : 7,
 				"text" : "Zoom % (higher = further away)",
 				"type" : "slider", "min" : 50, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"shift" : {
-				"order" : 7,
+				"order" : 8,
 				"text" : "Horizontal position % (move away from desktop icons)",
 				"type" : "slider", "min" : -40, "max" : 40, "step" : 1, "fraction" : false,
 				"value" : 0
 			},
 			"angle" : {
-				"order" : 8,
+				"order" : 9,
 				"text" : "Camera angle (degrees above equator)",
 				"type" : "slider", "min" : -60, "max" : 60, "step" : 1, "fraction" : false,
 				"value" : 18
 			},
 			"drift" : {
-				"order" : 9,
+				"order" : 10,
 				"text" : "Camera drift speed",
 				"type" : "slider", "min" : 0, "max" : 2, "fraction" : true, "precision" : 2,
 				"value" : 0.3
 			},
 			"parallax" : {
-				"order" : 10,
+				"order" : 11,
 				"text" : "Mouse parallax",
 				"type" : "slider", "min" : 0, "max" : 1, "fraction" : true, "precision" : 2,
 				"value" : 0.3
 			},
 			"speed" : {
-				"order" : 11,
+				"order" : 12,
 				"text" : "Animation speed (spin, clouds, waves, orbits)",
 				"type" : "slider", "min" : 0, "max" : 3, "fraction" : true, "precision" : 2,
 				"value" : 1
 			},
 			"brightness" : {
-				"order" : 12,
+				"order" : 13,
 				"text" : "Brightness %",
 				"type" : "slider", "min" : 30, "max" : 150, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"saturation" : {
-				"order" : 13,
+				"order" : 14,
 				"text" : "Colour saturation %",
 				"type" : "slider", "min" : 0, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"nebula" : {
-				"order" : 14,
+				"order" : 15,
 				"text" : "Background nebula %",
 				"type" : "slider", "min" : 0, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"showinfo" : {
-				"order" : 15,
+				"order" : 16,
 				"text" : "Show world name",
 				"type" : "bool", "value" : true
 			},
 			"showdetails" : {
-				"order" : 16,
+				"order" : 17,
 				"text" : "Show details line",
 				"type" : "bool", "value" : true
 			},
 			"showseed" : {
-				"order" : 17,
+				"order" : 18,
 				"text" : "Show seed",
 				"type" : "bool", "value" : false
 			},
 			"textsize" : {
-				"order" : 18,
+				"order" : 19,
 				"text" : "Text size %",
 				"type" : "slider", "min" : 50, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"autoquality" : {
-				"order" : 19,
+				"order" : 20,
 				"text" : "Automatic quality (lower resolution when the frame rate drops)",
 				"type" : "bool", "value" : false
 			},
 			"quality" : {
-				"order" : 19,
+				"order" : 20,
 				"text" : "Render quality % (lower = less GPU)",
 				"type" : "slider", "min" : 25, "max" : 100, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"tour" : {
-				"order" : 20,
+				"order" : 21,
 				"text" : "Tour: fly from body to body",
 				"type" : "bool", "value" : true
 			},
 			"tourtime" : {
-				"order" : 21,
+				"order" : 22,
 				"text" : "Tour: seconds at each stop",
 				"type" : "slider", "min" : 10, "max" : 180, "step" : 5, "fraction" : false,
 				"value" : 30
 			},
 			"orbitlines" : {
-				"order" : 22,
+				"order" : 23,
 				"text" : "Show orbit lines",
 				"type" : "bool", "value" : false
 			},
 			"bloom" : {
-				"order" : 23,
+				"order" : 24,
 				"text" : "Glow (bloom) %",
 				"type" : "slider", "min" : 0, "max" : 200, "step" : 5, "fraction" : false,
 				"value" : 100
 			},
 			"showrarity" : {
-				"order" : 24,
+				"order" : 25,
 				"text" : "Show rarity of rare finds",
 				"type" : "bool", "value" : true
 			}

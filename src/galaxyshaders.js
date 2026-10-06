@@ -33,14 +33,15 @@ vec3 diskEmit(vec3 p, Gal g, out float dust){
     a=pow(.5+.5*cos(ph),g.sharp)*inner;
     da=pow(.5+.5*cos(ph-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r);   // dust lanes hug the inside of each arm
   }
-  float n=fbm2(p.xz*14.,g.seed+7u);
+  vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));   // irregulars are thick: shear the noise with height so it isn't extruded
+  float n=fbm2(sh*14.,g.seed+7u);
   float vert=exp(-abs(p.y)/g.hz)/(2.*g.hz);
-  float disk=(g.t>1.5 ? exp(-r/g.hR)*(.15+2.2*a) : exp(-r/g.hR))*vert*(1.-smoothstep(1.25,1.9,r));
+  float disk=(g.t>1.5 ? exp(-r/g.hR)*(.05+.8*a) : exp(-r/g.hR))*vert*(1.-smoothstep(1.25,1.9,r));
   vec3 old=mix(g.core,vec3(1.,.92,.8),smoothstep(.05,.9,r));
   vec3 e=disk*(old*(.28+.5*a)*(.6+.8*n)+g.arm*a*1.6*(.25+n));
   float hv=exp(-abs(p.y)/(g.hz*.6))/(1.2*g.hz);                                 // (a thinner layer than the stars)
-  float kn=vnoise(p.xz*85.,g.seed+3u)*.65+vnoise(p.xz*170.,g.seed+5u)*.35;
-  e+=g.hii*exp(-r/g.hR)*hv*smoothstep(.45,.8,a)*smoothstep(.7,.88,kn)*6.;       // pink star-forming knots
+  float kn=a>.45 ? vnoise(sh*85.,g.seed+3u)*.65+vnoise(sh*170.,g.seed+5u)*.35 : 0.;
+  if(a>.45) e+=g.hii*exp(-r/g.hR)*hv*smoothstep(.45,.8,a)*smoothstep(.7,.88,kn)*6.;   // pink star-forming knots
   if(g.bar>0.){                                                                 // the bar
     float b=exp(-(p.x*p.x)/(g.bar*g.bar*.3)-(p.z*p.z)/(g.bar*g.bar*.03));
     e+=old*b*exp(-abs(p.y)/(g.hz*2.5))/(5.*g.hz)*1.4;
@@ -49,7 +50,15 @@ vec3 diskEmit(vec3 p, Gal g, out float dust){
   if(g.t>.5 && g.t<1.5) { e=vec3(0.); dust=0.; }
   return e;
 }
-float dustAt(vec3 p, Gal g){ float d; diskEmit(p,g,d); return d; }
+// just the dust (for dimming stars behind it): the same as diskEmit's, without the light
+float dustAt(vec3 p, Gal g){
+  if(g.t>.5&&g.t<1.5) return 0.;
+  float r=length(p.xz), da=.5;
+  if(g.t<1.5) da=pow(.5+.5*cos(armPhase(p.xz,g)-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r);
+  vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));
+  float n=fbm2(sh*14.,g.seed+7u);
+  return g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22;
+}
 
 float erf_(float x){
   float s=sign(x), a=abs(x), t=1./(1.+.3275911*a);
@@ -126,6 +135,7 @@ export function makeVolumeMat(u){
       }
       col+=bulgeLight(o,d,tc,Tc,g);
       col=(1.-exp(-pow(col*uExposure,vec3(uGamma))))*uBright*uFade;   // (uGamma > 1 inside the disk: a dark sky with a bright band)
+      col+=(fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5)/255.;   // dither: no banding in the smooth glow
       gl_FragColor=vec4(col,1.);
       #include <colorspace_fragment>
     }`,
@@ -261,6 +271,7 @@ export function makeImpostorMat(){
       }
       col+=bulgeLight(o,d,tc,Tc,g);
       col=(1.-exp(-col*.9))*uBright*uFade*vDim;
+      col+=(fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5)/255.*step(.02,col.r+col.g);
       gl_FragColor=vec4(col,1.);
       #include <colorspace_fragment>
     }`,

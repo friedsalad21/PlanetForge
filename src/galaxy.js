@@ -31,7 +31,7 @@ galaxyScene.add(galRoot);
 galRoot.add(selfImpostor, volume, points, nebGroup, visited, hoverMark);
 volume.renderOrder = 0; points.renderOrder = 2; nebGroup.renderOrder = 1;
 
-export const G = { g:null, stars:null, names:new Map() };
+export const G = { g:null, stars:null, names:new Map(), force:null };
 const cache = new Map();   // galaxies already generated this session (stars take a moment to sample)
 
 // an instanced quad per galaxy (used here for one, and by the universe for all of them)
@@ -120,7 +120,8 @@ export function updateGalaxy(camera, steps, px = pxScale.value){
   galRoot.worldToLocal(lc.copy(camera.position));   // the camera in the galaxy's own frame
   const D = lc.length(), R = g.R;
   u.uCam.value.copy(lc).divideScalar(R);
-  const w = THREE.MathUtils.smoothstep(D, 4*R, 6.5*R);        // 0: close (volume), 1: far (impostor)
+  let w = THREE.MathUtils.smoothstep(D, 4*R, 6.5*R);          // 0: close (volume), 1: far (impostor)
+  if (G.force!=null) w = G.force;                              // (for checking that the two match)
   volMat.uniforms.uFade.value = 1-w; volume.visible = w < 1;
   selfImpostor.material.uniforms.uFade.value = w; selfImpostor.visible = w > 0;
   selfImpostor.material.uniforms.uPx.value = pxScale.value;
@@ -134,7 +135,8 @@ export function updateGalaxy(camera, steps, px = pxScale.value){
   // over the whole sky, so add contrast there (the band stays bright, the rest goes dark)
   const out = Math.max(Math.abs(lc.y)/R, Math.hypot(lc.x, lc.z)/R-1.15, 0);
   const t = THREE.MathUtils.smoothstep(out, .01, .7);
-  volMat.uniforms.uExposure.value = Math.exp(THREE.MathUtils.lerp(Math.log(.3), Math.log(.9), t));
+  const core = Math.exp(-(((D/R)/(3*g.rb))**2)/2);   // deep in the bulge, light comes from every side
+  volMat.uniforms.uExposure.value = Math.exp(THREE.MathUtils.lerp(Math.log(.3), Math.log(.9), t))*(1-.9*core);
   volMat.uniforms.uGamma.value = THREE.MathUtils.lerp(1.9, 1, t);
   u.uHii.value.copy(g.hii).multiplyScalar(THREE.MathUtils.lerp(.25, 1, t));   // the thin knots alias from inside the disk; the nebulae take over there
   for (const m of nebGroup.children){

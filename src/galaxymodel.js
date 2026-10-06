@@ -145,7 +145,7 @@ export function makeStars(g){
     if (a < .55 || Math.hypot(x, z) < g.r0) continue;
     const roll = r(), h = roll<.6 ? .96+r()*.06 : roll<.85 ? .52+r()*.1 : .06+r()*.05;   // red emission, blue reflection, orange
     g.nebulae.push({i:g.nebulae.length, pos:[x*g.R, laplace()*g.hz*.3*g.R, z*g.R], rad:(.008+r()*.014)*g.R,
-      a:c(h, .75, .55), b:c(h+(r()<.5 ? .45 : .1), .7, .55), seed:Math.floor(r()*1e6)});
+      a:c(h, .75, .55), b:c(h+(r()<.25 ? .5 : r()<.5 ? .08 : -.06), .7, .55), seed:Math.floor(r()*1e6)});
   }
 
   const fGlob = .025, fOpen = g.type==='elliptical' ? 0 : .02, fHalo = .02;

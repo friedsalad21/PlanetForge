@@ -160,7 +160,7 @@ function flyToGalaxy(o){
 }
 
 // --- a galaxy ---
-function useGalaxy(gi){
+export function useGalaxy(gi){
   makeUniverse(L.U);
   const o = UNI.gals[gi];
   showGalaxy(o.g, o.quat);

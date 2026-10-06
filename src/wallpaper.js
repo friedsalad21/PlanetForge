@@ -2,11 +2,11 @@
 // the page into wallpaper mode: no input (desktop clicks pass through), slow camera drift, a tour from body
 // to body, and a new world on a timer.
 import * as THREE from 'three';
-import { S, opts, flags } from './state.js';
+import { S, L, opts, flags } from './state.js';
 import { camera, controls, resize, view } from './scene.js';
 import { apply } from './settings.js';
 import { autoDist, C, systemView } from './camera.js';
-import { newWorld, load, parseHash } from './ui.js';
+import { newWorld, go, parseHash } from './ui.js';
 
 export const wp = { fixedSeed:null };
 let cycleMin = 10, cycleTimer = null, fadeSec = 1;
@@ -36,15 +36,16 @@ window.wallpaperPropertyListener = {
     }
     if (p.showinfo) document.getElementById('info').hidden = !p.showinfo.value;
     if (p.seed){
-      const s = p.seed.value.trim(), h = parseHash(s);
-      wp.fixedSeed = h ? h.seed : null;
-      if (h){ history.replaceState(null,'','#'+s); load(h.seed, h.body); }
+      const s = p.seed.value.trim().replace(/^#/, ''), h = parseHash(s);   // a seed, or any link (a galaxy, a star in one…)
+      wp.fixedSeed = h ? s : null;
+      if (h){ history.replaceState(null,'','#'+s); go(h); }
     }
     if (p.cycle) cycleMin = p.cycle.value;
-    for (const [key,kind] of [['showplanets','planet'],['showstars','star'],['showblackholes','blackhole']])
+    for (const [key,kind] of [['showplanets','planet'],['showstars','star'],['showblackholes','blackhole'],['showgalaxies','galaxy']])
       if (p[key]) opts.allow[kind] = p[key].value;
-    if (p.showplanets || p.showstars || p.showblackholes){   // current world no longer allowed? swap it now
-      if (wp.fixedSeed===null && Object.values(opts.allow).some(Boolean) && !opts.allow[S.mode]) fadeTo(newWorld);
+    if (p.showplanets || p.showstars || p.showblackholes || p.showgalaxies){   // current world no longer allowed? swap it now
+      const kind = L.level!=='system' || L.gi!=null ? 'galaxy' : S.mode;
+      if (wp.fixedSeed===null && Object.values(opts.allow).some(Boolean) && !opts.allow[kind]) fadeTo(newWorld);
     }
     if (p.zoom){ opts.zoom = p.zoom.value/100; if (!C.focus) camera.position.sub(controls.target).setLength(autoDist()).add(controls.target); }
     if (p.angle) setElevation(p.angle.value);

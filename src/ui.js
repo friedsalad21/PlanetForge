@@ -7,10 +7,11 @@ import { stats } from './perf.js';
 import { rngFor } from './gen.js';
 import { build, bodyInfo } from './system.js';
 import { C, flyTo, systemView, setFly, resetCamera, pickAt, keys, addLook, stick, touchBoost } from './camera.js';
-import { NAV, parseAddr, addr, context, enterUniverse, enterGalaxy, enterSystem, plainSystem, up, newPlace, zoomOut as navZoomOut,
+import { NAV, parseAddr, addr, context, enterUniverse, enterGalaxy, enterSystem, useGalaxy, plainSystem, up, newPlace, zoomOut as navZoomOut,
   click as navClick, hoverAt, warping, resetTours } from './nav.js';
 import { UNI, makeUniverse } from './universe.js';
 import { G } from './galaxy.js';
+import { search } from './search.js';
 
 const $ = id => document.getElementById(id);
 const nameEl = $('name'), metaEl = $('meta'), seedEl = $('seed'), rarityEl = $('rarity'), hintEl = $('hint');
@@ -115,9 +116,10 @@ export function go(a){
   if (a.kind==='universe') return enterUniverse({instant:true});
   if (a.kind==='galaxy') return L.level==='galaxy' && L.gi===a.gi ? navZoomOut() : enterGalaxy(a.gi, {instant:true});
   if (L.level==='system' && L.gi===a.gi && L.place===a.place) return focusBody();
-  enterGalaxy(a.gi, {instant:true});   // makes sure the galaxy's stars exist, then checks the place is real
+  useGalaxy(a.gi);   // makes sure the galaxy's stars exist, then checks the place is real
   const n = +a.place.slice(1);
   if (a.place[0]==='s' ? n < G.stars.N : n < G.g.nebulae.length) enterSystem(a.gi, a.place, {body:a.body, push:false});
+  else enterGalaxy(a.gi, {instant:true});
 }
 addEventListener('hashchange', () => {
   const a = parseHash();
@@ -176,7 +178,7 @@ function zoomOut(){
   if (C.fly) setFly(false, false);
   if (L.level==='system') systemView(); else navZoomOut();
 }
-function toggleHelp(){ $('helpbox').hidden = !$('helpbox').hidden; $('setbox').hidden = true; }
+function toggleHelp(){ $('helpbox').hidden = !$('helpbox').hidden; $('setbox').hidden = true; $('findbox').hidden = true; }
 
 // --- settings panel ---
 const setbox = $('setbox'), inputs = [...setbox.querySelectorAll('[data-key]')];
@@ -197,7 +199,7 @@ for (const el of inputs) el.addEventListener('input', () => {
 });
 let panelTimer = null;
 function toggleSettings(){
-  setbox.hidden = !setbox.hidden; $('helpbox').hidden = true;
+  setbox.hidden = !setbox.hidden; $('helpbox').hidden = true; $('findbox').hidden = true;
   clearInterval(panelTimer);
   if (!setbox.hidden){
     syncPanel();
@@ -208,7 +210,35 @@ function toggleSettings(){
     live(); panelTimer = setInterval(live, 1000);
   }
 }
-function closePanels(){ if (!setbox.hidden) toggleSettings(); $('helpbox').hidden = true; }
+function closePanels(){ if (!setbox.hidden) toggleSettings(); $('helpbox').hidden = true; $('findbox').hidden = true; }
+
+// --- find ---
+const findbox = $('findbox'), findq = $('findq'), findres = $('findres'), findnote = $('findnote');
+function toggleFind(){
+  const open = findbox.hidden;
+  closePanels();
+  findbox.hidden = !open;
+  if (open){ findq.focus(); findq.select(); $('findstar').disabled = L.gi==null; }
+}
+const goHash = h => { findbox.hidden = true; location.hash = h; };
+let findTimer = null;
+async function runFind(){
+  const q = findq.value;
+  findnote.textContent = q.trim() ? 'Searching…' : '';
+  const res = await search(q, f => findnote.textContent = `Searching ${Math.round(f*100)}% of the stars in this galaxy…`);
+  if (!res) return;
+  findres.replaceChildren(...res.map(r => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.append(r.label); const sm = document.createElement('small'); sm.textContent = r.detail; b.append(sm);
+    b.onclick = () => goHash(r.hash);
+    li.append(b); return li;
+  }));
+  findnote.textContent = !q.trim() ? '' : res.length ? `${res.length} found` : 'Nothing found'+(L.gi==null ? ' (star names are searched in the galaxy you are in)' : '');
+}
+findq.addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 250); });
+findq.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); clearTimeout(findTimer); runFind().then(() => findres.querySelector('button')?.click()); } });
+const randomGalaxy = () => { makeUniverse(L.U); return Math.floor(Math.random()*UNI.gals.length); };
+const uPre = () => L.U===1n ? '' : 'u'+L.U+'.';
 
 // --- time ---
 let lastScale = 4;
@@ -241,7 +271,9 @@ function planetN(n){
 for (const [id, fn] of [['prev',()=>history.back()],['next',()=>newWorld()],['sys',zoomOut],['up',up],
   ['flyb',toggleFly],['orb',toggleOrbits],['copy',copyLink],['shot',screenshot],['hide',toggleUI],['showui',toggleUI],['help',toggleHelp],
   ['settings',toggleSettings],['setclose',toggleSettings],['setreset',()=>{ resetSettings(); syncPanel(); toast('Settings reset'); }],
-  ['pause',pause],['slower',slower],['faster',faster],['helpclose',toggleHelp],['flyexit',()=>setFly(false)]])
+  ['pause',pause],['slower',slower],['faster',faster],['helpclose',toggleHelp],['flyexit',()=>setFly(false)],
+  ['find',toggleFind],['findclose',toggleFind],['findstar',()=>{ findbox.hidden = true; newPlace(); }],
+  ['findgal',()=>goHash(uPre()+'g'+randomGalaxy())],['findhome',()=>goHash('g0')],['finduni',()=>goHash('u'+L.U)]])
   $(id).onclick = fn;
 
 const FLY_KEYS = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyC','ShiftLeft','ShiftRight','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -258,7 +290,7 @@ addEventListener('keydown', e=>{
     KeyP:pause, KeyK:pause, Comma:slower, Period:faster, BracketLeft:slower, BracketRight:faster,
     Escape:()=>{ if (!$('helpbox').hidden || !setbox.hidden) closePanels(); else if (document.body.classList.contains('clean')) toggleUI();
       else if (C.fly || C.focus || L.level!=='system') zoomOut(); },
-    Tab:()=>L.level==='system' && cycle(e.shiftKey ? -1 : 1), Slash:toggleHelp,
+    Tab:()=>L.level==='system' && cycle(e.shiftKey ? -1 : 1), Slash:e.key==='/' ? toggleFind : toggleHelp,
     Digit0:()=>{ if (L.level!=='system') return; const s = S.bodies.find(b => b.type==='star' || b.type==='blackhole'); s ? flyTo(s) : systemView(); },
   }[e.code] ?? (/^Digit[1-9]$/.test(e.code) && L.level==='system' ? () => planetN(+e.code.slice(5)) : null);
   if (act){ e.preventDefault(); act(); }
@@ -285,7 +317,7 @@ cv.addEventListener('pointermove', e => {
 function hover(){
   hoverQueued = false;
   if (!lastMove || flags.wallpaper) return;
-  if (L.level!=='system'){
+  if (L.level!=='system' || warping()){
     const text = warping() ? null : hoverAt(...lastMove);
     cv.style.cursor = text ? 'pointer' : 'grab';
     if (text){

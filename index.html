@@ -21,7 +21,7 @@
   #rarity{font-size:calc(12px*var(--ts,1));letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px;min-height:1em}
   #rarity[data-tier=Uncommon]{color:#9fe0a0} #rarity[data-tier=Rare]{color:#8cc8ff}
   #rarity[data-tier=Epic]{color:#d5a0ff} #rarity[data-tier=Legendary]{color:#ffc35c}
-  #hint{position:fixed;top:16px;left:14px;opacity:.45;font-size:13px;pointer-events:none;z-index:1;max-width:calc(100% - 640px)}
+  #hint{position:fixed;top:16px;left:14px;opacity:.45;font-size:13px;pointer-events:none;z-index:1;max-width:calc(100% - 860px)}
   #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1s;pointer-events:none;z-index:2}
   #bar{position:fixed;top:10px;right:10px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;z-index:1;opacity:.6;transition:opacity .2s}
   #bar:hover,#bar:focus-within,#timebar:hover,#timebar:focus-within{opacity:1}
@@ -48,6 +48,14 @@
   #setbox output,#setbox .note{font-size:12px;opacity:.7}
   #setbox .note{grid-column:2/4}
   #setfoot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;opacity:.85}
+  #findq{width:100%;box-sizing:border-box;font:15px system-ui,sans-serif;color:#fff;background:#1a1d26;border:1px solid rgba(255,255,255,.25);
+    border-radius:6px;padding:8px 10px;margin:4px 0 8px}
+  #findq:focus-visible{outline:2px solid #8cf;outline-offset:1px}
+  #findnote{font-size:12px;opacity:.65;min-height:1.2em;margin-bottom:6px}
+  #findres{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto}
+  #findres button{display:block;width:100%;text-align:left;margin:2px 0;background:rgba(255,255,255,.06);white-space:normal}
+  #findres small{opacity:.6;margin-left:6px}
+  #findfoot{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
   #showui{position:fixed;top:10px;right:10px;z-index:1;opacity:.2;display:none} #showui:hover,#showui:focus-visible{opacity:.9}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   #touchfly{display:none}
@@ -61,6 +69,7 @@
     #boost,#flyexit{position:fixed;right:24px;z-index:3;padding:14px 18px;font-size:15px;touch-action:none}
     #boost{bottom:70px} #flyexit{bottom:140px}
   }
+  @media (max-width:1400px){ #hint{top:auto;bottom:4px;left:50%;transform:translateX(-50%);max-width:min(640px,calc(100% - 340px));text-align:center;font-size:12px;opacity:.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} }
   @media (max-width:760px){ #hint{display:none} #bar{left:10px;justify-content:center} #bar button{padding:6px 7px;font-size:12px} }
 </style>
 <!-- three.js r170 (and its bloom post-processing) is bundled in lib/ so the page also works offline (e.g. as a Wallpaper Engine wallpaper) -->
@@ -73,6 +82,7 @@
   <button id="next" title="New world (Space or →)">New</button>
   <button id="sys" title="Back out (Esc)" hidden>⤢ Zoom out</button>
   <button id="up" title="Zoom out to a galaxy (G)">✦ Galaxy</button>
+  <button id="find" title="Find a star, nebula, galaxy or seed (/)">Find</button>
   <button id="flyb" title="Fly freely with W A S D and the mouse (F)">Fly</button>
   <button id="orb" title="Show or hide orbits (O)">Orbits</button>
   <button id="copy" title="Copy a link to this exact view (C)">Copy link</button>
@@ -101,6 +111,7 @@
     <tr><td><kbd>P</kbd> · <kbd>,</kbd> <kbd>.</kbd></td><td>Pause · slower / faster time</td></tr>
     <tr><td><kbd>O</kbd></td><td>Show orbits</td></tr>
     <tr><td><kbd>G</kbd></td><td>Zoom out a level: star system → its galaxy → the universe</td></tr>
+    <tr><td><kbd>/</kbd></td><td>Find a star, nebula or galaxy by name, or go to a seed or link</td></tr>
     <tr><td><kbd>C</kbd> · <kbd>S</kbd> · <kbd>H</kbd></td><td>Copy a link to this view · screenshot (size in ⚙ settings) · hide all the UI</td></tr>
   </table>
   <h3>Galaxies and the universe</h3>
@@ -121,6 +132,19 @@
     <tr><td><kbd>F</kbd> · <kbd>Esc</kbd></td><td>Land on the nearest body · stop flying</td></tr>
     <tr><td>Phones</td><td>Left stick to move, drag to look, Boost button</td></tr>
   </table>
+</div>
+<div id="findbox" class="panel" hidden role="dialog" aria-label="Find">
+  <button id="findclose" class="close" aria-label="Close">✕</button>
+  <h2>Find</h2>
+  <input id="findq" type="search" placeholder="A star, nebula or galaxy name, a seed, or a link" autocomplete="off" aria-label="Search">
+  <div id="findnote" aria-live="polite"></div>
+  <ul id="findres"></ul>
+  <div id="findfoot">
+    <button id="findstar" title="A random star in this galaxy">Random star</button>
+    <button id="findgal" title="A random galaxy in the universe">Random galaxy</button>
+    <button id="findhome" title="Our home galaxy, the Forge">Home galaxy</button>
+    <button id="finduni" title="The whole universe">The universe</button>
+  </div>
 </div>
 <div id="setbox" class="panel" hidden role="dialog" aria-label="Settings">
   <button id="setclose" class="close" aria-label="Close">✕</button>

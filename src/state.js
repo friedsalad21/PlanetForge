@@ -20,7 +20,7 @@ export const S = {
 
 // opts the wallpaper panel can change (defaults = normal website behaviour)
 export const opts = { zoom:1, nebula:1, timeScale:1, parallax:0, bloom:1, tour:true, tourSec:30,
-  allow:{planet:true, star:true, blackhole:true} };
+  allow:{planet:true, star:true, blackhole:true, galaxy:true} };   // (galaxy: the wallpaper only)
 export const flags = { wallpaper:false };
 
 // where we are in the universe (nav.js): 'system' (a star system or lone planet), 'galaxy' or 'universe'.

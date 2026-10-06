@@ -4,6 +4,7 @@
 //   system.js    build a seed, move and light it extras.js     comets, stations, Dyson swarms, nebulae
 //   orbit.js     Kepler orbits                   camera.js     focus, fly-to, free flight, tour
 //   ui.js        toolbar, keys, links            wallpaper.js  Wallpaper Engine settings
+//   nav.js       universe ⇄ galaxy ⇄ system      galaxy*.js / universe.js  galaxies and the universe
 import * as THREE from 'three';
 import { S, opts } from './state.js';
 import { renderer, camera, controls, root, scene, render, SUN, skyScene, skyCamera, composer, skyPass, mainPass } from './scene.js';

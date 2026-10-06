@@ -7,11 +7,12 @@ The long-term goal is a **No Man's Sky-style explorable universe**: everything g
 
 ```
 universe seed ─▶ galaxies ─▶ star systems ─▶ planets ─▶ moons
-                                  │              │
-                         build(seed) today   makeWorld() today
+      │              │             │            │
+ universe.js  galaxymodel.js  build(seed)  makeWorld()
 ```
 
 Each level gets its own seed and is only generated when you get close, so the universe can be effectively infinite.
+Today: universe seed → 800 galaxies → 60,000–150,000 stars each → a full star system per star (see phase 4).
 
 ---
 
@@ -20,55 +21,6 @@ Each level gets its own seed and is only generated when you get close, so the un
 - [ ] Pulsar beams: remove completely, including the flash as the beam sweeps past
 - [ ] Black hole camera limit: zooming out stops at 40 units because the bent-light (lensing) effect is only drawn inside a sphere 50 units across; make it work at any distance and remove the limit
 - [ ] Black hole warping (the stars around it stretched into arcs): remove completely
-
----
-
-## Next up: phase 4 plan (galaxy and universe)
-
-Phase 4 is the big step towards the No Man's Sky goal: today every seed is one isolated system; after it, every system is a real star in a galaxy you can fly through. It's split into milestones that each ship on their own, so the site keeps working after every push.
-
-**Ground rules**
-- Old links keep working: `#123` still opens the same system as today. New links get a prefix (see 4e).
-- Nothing is stored: every galaxy, sector and star is rebuilt from seeds as you approach it.
-- Three scales, never mixed in one scene: universe (galaxies), galaxy (stars as points), system (what we have now). Switching scale is a crossfade + camera hand-off, and the floating origin from phase 1 keeps each one jitter-free.
-
-**4a. One galaxy you can look at** (new `src/galaxy.js`)
-- [ ] Galaxy shape from a seed: spiral (2 to 6 log-spiral arms, bar or no bar), elliptical, irregular
-- [ ] Density function: bright bulge + exponential disk + arms, with dark dust lanes along the inner edge of each arm
-- [ ] Draw it as ~200,000 GPU points (one draw call, size and colour per star) plus a soft glow layer, so it looks right from far away
-- [ ] Colours follow the structure: young blue/white stars and pink star-forming knots in the arms, older yellow/red core
-- [ ] Galaxy view: orbit it like a planet, with bloom on the core
-
-**4b. Every star is a system**
-- [ ] Split the galaxy into a 3D grid of sectors; each sector's stars come from `hash(galaxy seed, sector)`, generated only near the camera
-- [ ] Each star gets a type that fits where it is (more red dwarfs everywhere, blue giants in the arms, exotic stars rare) and its own system seed
-- [ ] `build(seed, {star})`: the system generator accepts the star type the galaxy chose, so the star you clicked is the star you arrive at
-- [ ] Hover a star: name, type, distance; click: fly to it, and as you arrive the point becomes the real system (crossfade)
-- [ ] "Zoom out" from a system goes back up to the galaxy, at that star
-
-**4c. Landmarks**
-- [ ] Supermassive black hole at the centre (reuses the black hole system, scaled up)
-- [ ] Nebulae as places: soft ray-marched clouds in the arms that you can fly into, with protostars inside
-- [ ] Star clusters (open clusters in the arms, globular clusters in the halo)
-- [ ] Rare systems (Dyson spheres, stations, rogues) tend to show up in the right neighbourhoods
-
-**4d. Travel**
-- [ ] Warp / hyperspace effect when jumping between stars (stars stretch into streaks, short flash on arrival)
-- [ ] Free-fly works in galaxy view too, with speed scaled to the zoom
-- [ ] Wallpaper tour: drift through the galaxy, dip into a system now and then
-
-**4e. Map, search and links**
-- [ ] Galaxy map overlay: your position, visited stars, "jump to random star"
-- [ ] Links to any place: `#g<galaxy>` (galaxy), `#g<galaxy>.<star>` (system), `#g<galaxy>.<star>-p2m1` (moon); plain `#123` stays a standalone system
-- [ ] Search by seed or star name
-
-**4f. The universe**
-- [ ] Universe seed → galaxies scattered in clusters and filaments; far ones are small images (impostors), near ones become full galaxies
-- [ ] Fly between galaxies with a longer warp
-
-**Performance budget:** galaxy view must hold 60 fps on the same machines as today (one draw call for the far stars, sector generation spread over several frames, no shader compile stalls: add the new shaders to the warm-up). Auto quality scales the star count.
-
-**Open questions for Sean** (sensible defaults chosen if not answered): should the website open in galaxy view or keep opening on a random system (default: random system, with a "Galaxy" button)? Should the wallpaper show galaxies (default: yes, as a new allowed kind)?
 
 ---
 
@@ -108,15 +60,36 @@ Phase 4 is the big step towards the No Man's Sky goal: today every seed is one i
 
 ## 4. Galaxy and universe
 
-- [ ] Galaxy view: spiral arms (and elliptical / irregular galaxies) made of thousands of stars as points of light
-- [ ] Each star has a seed and expands into a full star system when you fly to it
-- [ ] Star colours and densities follow the galaxy's structure (blue arms, older yellow/red core)
-- [ ] Nebulae as real places you can fly into, not just a backdrop
-- [ ] Black hole at the galactic centre
-- [ ] Universe view: many galaxies scattered through space, fly between them
-- [ ] Galaxy map with search by seed and "jump to random star"
-- [ ] Shareable links that point to any place: universe / galaxy / system / planet
-- [ ] Warp / hyperspace transition effect when jumping between stars
+Shipped in stages 4a–4f. Old links still open the same worlds: `#123` is a plain seed as before, and places in galaxies have their own links (`#g5`, `#g5.s1234`, `#g5.n3`, `#u1`).
+
+- [x] Galaxy shapes from a seed: spirals with 2 to 5 log-spiral arms, barred spirals, ellipticals and irregular clouds
+- [x] A ray-marched glow: exponential disk, arms, a bulge and nucleus integrated exactly along each ray, a bar, dust lanes on the inside of each arm, pink star-forming knots
+- [x] 60,000 to 150,000 stars per galaxy as GPU points that grow and brighten as you approach, dimmed by the dust in front of them
+- [x] Colours follow the structure: young blue stars, Wolf-Rayet stars and protostars in the arms, old red and orange stars in the bulge and halo
+- [x] Galaxy view: orbit it, zoom from the whole galaxy down to a single star
+- [x] Every star has its own seed and opens as its own star system, of the same type the galaxy showed (`build(seed, {star})`)
+- [x] Hover a star for its name, type and distance from the core; click to fly there and warp in
+- [x] Zoom out (G) from a star system to its galaxy, right at that star, and from a galaxy to the universe
+- [x] The sky of a star system in a galaxy shows that galaxy's band of light from where the star really is (and its neighbouring stars)
+- [x] Supermassive black hole at the centre (star 0), with a sky full of the bulge's stars
+- [x] Nebulae as places: ray-marched clouds with dark dust in the arms; flying into one opens a young system inside it
+- [x] Globular clusters in the halo, open clusters in the arms
+- [x] Warp jump between galaxy and star system: stars stretch into streaks, the screen washes out, the system is there
+- [x] Free flight (F) in galaxy and universe views, with speed scaled to the zoom
+- [x] Wallpaper: galaxies as a new kind to show (drifts around, sometimes dives into a star system and comes back out)
+- [x] Universe view: 800 galaxies in clusters and filaments; fly into any of them (seamlessly: no warp needed)
+- [x] Other galaxies seen from inside one, as the backdrop of the galaxy view
+- [x] Links to any place: universe, galaxy, star, nebula and any planet or moon in it
+- [x] Find (/): search galaxies, nebulae and every star of the current galaxy by name; go to a seed or link; random star, random galaxy, home galaxy
+- [x] Visited stars are remembered and ringed in the galaxy view (the galaxy view is the map)
+- [x] Galaxy shaders compiled in the background with the rest, and automatic quality covers the new views
+
+Still open from phase 4:
+
+- [ ] More stars streamed in near the camera (sectors), so a galaxy has millions instead of a fixed catalogue
+- [ ] Rare systems (Dyson spheres, stations) more likely in fitting neighbourhoods, not just star types
+- [ ] A small map overlay while you're inside a star system, showing where in the galaxy you are
+- [ ] More than one universe in the UI (links like `#u2.g5` already work)
 
 ## 5. More to discover
 
@@ -193,4 +166,5 @@ Phase 4 is the big step towards the No Man's Sky goal: today every seed is one i
 - [x] Code split into ES modules (`src/`)
 - [x] Phase 1 free movement, phase 2 Kepler orbits, phase 5 rare finds, phase 6 planet visuals and phase 10 quality of life (above)
 - [x] Fixed black flickering (NaN pixels from a few shaders, plus a clean-up pass before the bloom)
+- [x] Phase 4: galaxies and the universe (above)
 - [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles
