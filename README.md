@@ -25,9 +25,9 @@ What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, lan
 | | |
 |---|---|
 | Click a body | Fly to it and orbit it (in a galaxy: a star or nebula, then warp in; in the universe: a galaxy) |
-| Click empty space / Esc | Zoom back out (when zoomed out: a new world) |
+| Click empty space / Esc | Zoom back out (when zoomed out: a new world; in a galaxy's star system: back to the galaxy) |
 | Tab / 1–9 / 0 | Next body / planet number / the star |
-| Drag / scroll | Look around / zoom (in galaxies and the universe, scroll zooms towards the pointer and right-drag pans) |
+| Drag / scroll | Look around / zoom (in galaxies and the universe, scroll zooms towards the pointer and right-drag or Shift-drag pans; scrolling out of a galaxy's star system goes back to the galaxy) |
 | Space / → | New world (in a galaxy: a random star; in the universe: a random galaxy) |
 | G | Zoom out a level: star system → its galaxy → the universe |
 | W | Leave the galaxies: back to random worlds |
@@ -59,7 +59,9 @@ The repo doubles as a Wallpaper Engine web wallpaper. In Wallpaper Engine, choos
 
 ## Code
 
-`index.html` is just the page; the code is in `src/` as ES modules:
+`index.html` is just the page; the code is in `src/` as ES modules. Notes for making changes (keeping docs up to date, seed stability, shader pitfalls) are in [`CLAUDE.md`](CLAUDE.md); what's done and what's next is in the [roadmap](ROADMAP.md).
+
+The code is in `src/` as ES modules:
 
 | | |
 |---|---|

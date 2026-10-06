@@ -1,6 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 6 October 2026** (galaxy navigation and freeze fixes).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
@@ -88,6 +89,9 @@ Shipped in stages 4a–4f. Old links still open the same worlds: `#123` is a pla
 - [x] Star-forming knots and irregular star clouds drawn as a crisp mid-plane layer (no streaks from any angle)
 - [x] The cosmic web: faint gas along the universe's filaments and clusters; visited galaxies ringed, the one under the pointer highlighted
 - [x] ⌂ Random worlds (W): leave the galaxies and go back to plain random worlds
+- [x] Map-style navigation in galaxies and the universe: scroll zooms towards the pointer, right-drag or Shift-drag pans, and zooming far out drifts the view back to the galaxy's centre
+- [x] Leaving a galaxy's star system: scroll out past its edge, Esc or Zoom out carries on to the galaxy (the Zoom out button stays visible there)
+- [x] Dragging or scrolling takes over from any camera flight; clicking empty space at the overview does nothing instead of restarting a flight
 
 Still open from phase 4:
 
@@ -173,4 +177,13 @@ Still open from phase 4:
 - [x] Fixed black flickering (NaN pixels from a few shaders, plus a clean-up pass before the bloom)
 - [x] Phase 4: galaxies and the universe (above)
 - [x] Backdrop nebulae in natural colours (no more green haze); distant dots, star points and far comet tails are soft round blobs instead of squares in the glow
+- [x] Fixes from testing (October 2026):
+  - Ice cracks: long, patchy fractures instead of an even mesh of squiggles
+  - Rivers freeze over and vanish under snow (they showed as grey squiggles on ice caps)
+  - Galaxy glow kept its tilt after the half-resolution change (tilted galaxies split into crescents)
+  - Free flight in a galaxy no longer leaves the view frozen afterwards
+  - Rings: an exact integer hash instead of `fract(sin())`, which broke into blocks and lines on some graphics cards; soft-edged planet shadow on the rings
+  - A galaxy star system's sky no longer shows visited-star rings or streaks from edge-on star-forming knots
+  - Galaxy shaders: shorter loops (much faster to compile on Windows), the nebula shader is warmed up, and every shader is drawn once off screen before it's needed
+  - Clicking in a galaxy or the universe no longer locks the view for seconds
 - [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles
