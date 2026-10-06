@@ -169,7 +169,8 @@ export const bodyMat = new THREE.ShaderMaterial({
         float riv=(1.-smoothstep(rw,rw+fwidth(rn)*1.2,abs(rn)))*(1.-smoothstep(.28,.42,t));
         float lk=snoise(p*5.5+uSeed.yzx+11.);
         float lake=smoothstep(.6,.6+fwidth(lk)*1.2+.004,lk)*smoothstep(.03,.08,t)*(1.-smoothstep(.4,.5,t));
-        float fw=max(riv,lake)*uRivers;
+        float snowy=smoothstep(.5,.75,dot(col,vec3(.3,.4,.3)))*(1.-smoothstep(.08,.2,max(col.r,max(col.g,col.b))-min(col.r,min(col.g,col.b))));
+        float fw=max(riv,lake)*uRivers*(1.-snowy);   // on snowy ground the rivers are frozen over and buried
         col=mix(col,mix(uShallow,uDeep,.45),fw);
         n=normalize(mix(n,p,fw)); water=max(water,fw);
       }
