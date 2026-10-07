@@ -11,7 +11,6 @@ export const C = {
   speedMul: 1,      // free-fly speed (mouse wheel)
   onFocus: null,    // UI callback when the focus changes
   userDist: null,   // your own zoom of the system view (see viewDistance)
-  bodyZoom: 1,      // your own zoom on a body, as a multiple of its default framing
 };
 const lastPos = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const ease = t => t<.5 ? 4*t*t*t : 1-(-2*t+2)**3/2;   // ease in and out, no jumps
@@ -24,18 +23,11 @@ export function viewDistance(){
   if (C.userDist==null) return autoDist();
   return THREE.MathUtils.clamp(C.userDist, S.minDist*1.08, Math.max(60, S.fitDist*3));
 }
-// The same for planets, moons and stars: zoom in close on one and the next one you click is framed just as close
-// (relative to its size), until you zoom back to the default framing.
 controls.addEventListener('end', () => {   // after you drag or scroll
-  if (L.level!=='system' || C.flight || C.fly || flags.wallpaper) return;
+  if (L.level!=='system' || C.focus || C.flight || C.fly || flags.wallpaper) return;
   const d = camera.position.distanceTo(controls.target);
-  if (C.focus){ const k = d/viewDist(C.focus); C.bodyZoom = Math.abs(k-1) < .06 ? 1 : k; }
-  else C.userDist = Math.abs(d/autoDist()-1) < .06 ? null : d;
+  C.userDist = Math.abs(d/autoDist()-1) < .06 ? null : d;
 });
-function bodyDistance(b){
-  const R = bodyRadius(b);
-  return THREE.MathUtils.clamp(viewDist(b)*C.bodyZoom, R*1.15, Math.max(S.fitDist*3, R*12));
-}
 
 // how far to sit from a body to frame it nicely
 function viewDist(b){
@@ -53,7 +45,7 @@ export function flyTo(b, {dur, instant=false} = {}){
   const end = b ? bodyPos(b, new THREE.Vector3()) : systemCenter(new THREE.Vector3());
   let d1, dir1 = dir0.clone();
   if (b){
-    d1 = bodyDistance(b);
+    d1 = viewDist(b);
     if (!['star','blackhole'].includes(b.type)){
       // a three-quarter view of the sunlit side, from the side we're already on
       const toSun = lightAt(end).dir.clone(), up = new THREE.Vector3(0,1,0);
