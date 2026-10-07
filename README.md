@@ -19,7 +19,7 @@ Procedural space in the browser, built with three.js. Every world comes from a 6
 
 **Runs smoothly anywhere:** quality drops automatically when the frame rate falls and comes back when there's headroom. Settings are remembered, and the page follows your system's reduced-motion setting.
 
-What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, landing on planets, a discovery log and more).
+What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, landing on planets, a discovery log, running smoothly on weak devices, WebGPU and more).
 
 ## Controls
 

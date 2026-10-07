@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (variants: about 60 new looks for planets, moons, stars, systems and galaxies; see [VARIANTS.md](VARIANTS.md)).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (added section 12: WebGPU ideas, to consider next).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
@@ -37,6 +37,22 @@ Goal: smooth and sharp on an old phone or a laptop with integrated graphics, not
 - [ ] **Don't redraw when nothing moves:** when paused and the camera is still, stop rendering (saves battery, keeps phones cool).
 - [ ] **Lighter galaxies:** on low tiers draw galaxies with the cheap far-away version (no ray-marching), with fewer star points.
 - [ ] **Load less up front:** compile only the shaders the current tier needs, and generate galaxy stars in a background worker so nothing hitches.
+
+## 12. WebGPU (to consider next: ideas, not started)
+
+WebGPU is the newer way for a web page to use the graphics card. By itself it won't draw the planets much faster, because the same graphics card does the same work for every pixel. The big gains come from **compute shaders** (any kind of maths run on the graphics card, not just drawing) and from less work on the CPU each frame. three.js has a WebGPU renderer that **switches back to WebGL 2 by itself** where WebGPU isn't available, so no device gets worse than it is today.
+
+Who gets WebGPU (at the time of writing): Chrome and Edge on Windows, Mac and ChromeOS; Chrome on newer Android phones; Safari on iPhones and Macs from iOS / macOS 26; Firefox on Windows. Everyone else gets the WebGL 2 version, which is what runs now. Every PC and phone has a graphics chip, even if it's a small one built into the processor; the only true "no GPU" case is software rendering (some virtual machines and remote desktops), which is slow with either renderer.
+
+- [ ] **Measure first:** a test page that draws the same seeds with WebGL and with WebGPU on a gaming PC, a laptop with integrated graphics and a phone, so we only switch where it pays off
+- [ ] **Switch to three.js's WebGPU renderer** (`three.webgpu.js`, which needs a newer three.js than the bundled r170), with its automatic WebGL 2 fallback
+- [ ] **Port the shaders:** about 23 custom GLSL shader materials (planets, clouds, rings, stars, black holes, galaxies, nebulae) rewritten in TSL, three.js's shader language that compiles to both WebGPU and WebGL 2, so there's still only one set of shaders. Bloom moves to the WebGPU renderer's own post-processing. This is the big job.
+- [ ] **Gravity simulation on the graphics card** (phase 3): compute shaders move thousands of bodies at once, so asteroid belts, ring particles and debris can take part, not just planets and moons
+- [ ] **Millions of galaxy stars** (open item from phase 4): generate and update the stars near the camera in compute shaders instead of a fixed catalogue built on the CPU
+- [ ] **Bake planet surfaces with compute** (goes with the first idea in section 11): draw a planet's terrain into a texture once on the graphics card when you arrive, then just look it up each frame
+- [ ] **Ring and belt particles as real orbiting bodies:** each particle moved by a compute shader on its own Kepler orbit
+- [ ] **Landing terrain** (phase 7): build the ground meshes in compute shaders as you fly down
+- [ ] **Wallpaper Engine check:** find out whether its built-in browser supports WebGPU; if it doesn't, the WebGL 2 fallback keeps the wallpaper working as now
 
 ## 1. Free movement (do first: everything else builds on it)
 
