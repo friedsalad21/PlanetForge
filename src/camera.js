@@ -10,12 +10,24 @@ export const C = {
   fly: false,       // free-fly mode
   speedMul: 1,      // free-fly speed (mouse wheel)
   onFocus: null,    // UI callback when the focus changes
+  userDist: null,   // your own zoom of the system view (see viewDistance)
 };
 const lastPos = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const ease = t => t<.5 ? 4*t*t*t : 1-(-2*t+2)**3/2;   // ease in and out, no jumps
 
 export function systemCenter(out){ return root.getWorldPosition(out); }
 export function autoDist(){ return S.fitDist*opts.zoom*Math.max(1,.9/camera.aspect); }   // portrait screens back off further
+// If you've zoomed the whole-system view away from its automatic framing, that distance is kept for the next
+// worlds too (null = use the automatic framing). Clamped so you never start inside a star or out of reach.
+export function viewDistance(){
+  if (C.userDist==null) return autoDist();
+  return THREE.MathUtils.clamp(C.userDist, S.minDist*1.08, Math.max(60, S.fitDist*3));
+}
+controls.addEventListener('end', () => {   // after you drag or scroll
+  if (L.level!=='system' || C.focus || C.flight || C.fly || flags.wallpaper) return;
+  const d = camera.position.distanceTo(controls.target);
+  C.userDist = Math.abs(d/autoDist()-1) < .06 ? null : d;
+});
 
 // how far to sit from a body to frame it nicely
 function viewDist(b){
@@ -42,7 +54,7 @@ export function flyTo(b, {dur, instant=false} = {}){
       dir1 = toSun.multiplyScalar(.7).add(side.multiplyScalar(.6)).add(up.multiplyScalar(.28)).normalize();
     }
   } else {
-    d1 = autoDist();
+    d1 = viewDistance();
     dir1.y = Math.max(dir1.y, .2); dir1.normalize();
   }
   if (C.fly) setFly(false, false);
@@ -209,7 +221,7 @@ export function resetCamera(){
   controls.target.copy(lastPos);
   const dir = camera.position.clone().sub(controls.target);
   if (dir.lengthSq() < 1e-8) dir.set(0,1.1,3.4);
-  camera.position.copy(controls.target).addScaledVector(dir.normalize(), autoDist());
+  camera.position.copy(controls.target).addScaledVector(dir.normalize(), viewDistance());
   finish();
   resetTour();
 }
