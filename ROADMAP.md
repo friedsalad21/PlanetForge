@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (variants: over 70 new looks for planets, moons, stars, systems and galaxies; see [VARIANTS.md](VARIANTS.md)).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (variants: about 60 new looks for planets, moons, stars, systems and galaxies; see [VARIANTS.md](VARIANTS.md)).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
