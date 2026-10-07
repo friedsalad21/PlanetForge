@@ -202,14 +202,23 @@ export function updateCamera(dt){
   updateClip();
 }
 // called after a new world is built
-export function resetCamera(){
+let lastAuto = null;   // the last automatic distance (see resetCamera)
+// keepZoom: a new plain seed world replacing the one on screen (not arriving from a galaxy, not the wallpaper)
+export function resetCamera({keepZoom = false} = {}){
+  const wasFocused = !!C.focus || C.fly;
   C.flight = null; C.focus = null;
   if (C.fly) setFly(false, false);
+  const dir = camera.position.clone().sub(controls.target);   // (measured from the old view's centre)
   systemCenter(lastPos);
   controls.target.copy(lastPos);
-  const dir = camera.position.clone().sub(controls.target);
   if (dir.lengthSq() < 1e-8) dir.set(0,1.1,3.4);
-  camera.position.copy(controls.target).addScaledVector(dir.normalize(), autoDist());
+  // auto-fit the new world, unless you'd zoomed away from the last automatic distance: then keep your zoom
+  // (as the original single-file version did). Only from the whole-system view, and never inside the new star.
+  const d = dir.length(), keep = keepZoom && !flags.wallpaper && !wasFocused && lastAuto!==null && Math.abs(d-lastAuto) > .05;
+  const auto = autoDist();
+  const dist = keep ? Math.max(d, S.minDist*1.05) : auto;
+  if (!keep) lastAuto = auto;
+  camera.position.copy(controls.target).addScaledVector(dir.normalize(), dist);
   finish();
   resetTour();
 }

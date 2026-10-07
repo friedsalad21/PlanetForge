@@ -28,7 +28,7 @@ What's next: see the **[roadmap](ROADMAP.md)** (a gravity simulation toggle, lan
 | Click empty space / Esc | Zoom back out (when zoomed out: a new world; in a galaxy's star system: back to the galaxy) |
 | Tab / 1–9 / 0 | Next body / planet number / the star |
 | Drag / scroll | Look around / zoom (in galaxies and the universe, scroll zooms towards the pointer and right-drag or Shift-drag pans; scrolling out of a galaxy's star system goes back to the galaxy) |
-| Space / → | New world (in a galaxy: a random star; in the universe: a random galaxy) |
+| Space / → | New world, keeping your zoom if you've zoomed in or out (in a galaxy: a random star; in the universe: a random galaxy) |
 | G | Zoom out a level: star system → its galaxy → the universe |
 | W | Leave the galaxies: back to random worlds |
 | / | Find a star, nebula or galaxy by name, or go to a seed or link |

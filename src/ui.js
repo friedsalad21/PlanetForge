@@ -77,9 +77,10 @@ const modeOf = seed => { const x = rngFor(seed)(); return x<.7 ? 'planet' : x<.9
 const prevBtn = $('prev');
 const depth = () => history.state?.d ?? 0;
 export function load(seed, bodyId){
+  const fromPlain = L.level==='system' && L.gi==null;   // keep your zoom only from one plain world to the next
   plainSystem();
   build(seed);
-  resetCamera();
+  resetCamera({keepZoom:fromPlain});
   showInfo(null);
   const b = bodyId && S.bodies.find(b => b.id===bodyId);
   if (b) flyTo(b, {instant:true});
