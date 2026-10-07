@@ -202,7 +202,7 @@ export function updateCamera(dt){
   updateClip();
 }
 // called after a new world is built
-let lastAuto = null;   // the last automatic distance (see resetCamera)
+let lastAuto = null, lastSet = null, userZoom = null;   // last automatic distance, last distance we set, your own zoom-out (see resetCamera)
 // keepZoom: a new plain seed world replacing the one on screen (not arriving from a galaxy, not the wallpaper)
 export function resetCamera({keepZoom = false} = {}){
   const wasFocused = !!C.focus || C.fly;
@@ -212,12 +212,13 @@ export function resetCamera({keepZoom = false} = {}){
   systemCenter(lastPos);
   controls.target.copy(lastPos);
   if (dir.lengthSq() < 1e-8) dir.set(0,1.1,3.4);
-  // auto-fit the new world, unless you'd zoomed away from the last automatic distance: then keep your zoom
-  // (as the original single-file version did). Only from the whole-system view, and never inside the new star.
-  const d = dir.length(), keep = keepZoom && !flags.wallpaper && !wasFocused && lastAuto!==null && Math.abs(d-lastAuto) > .05;
-  const auto = autoDist();
-  const dist = keep ? Math.max(d, S.minDist*1.05) : auto;
-  if (!keep) lastAuto = auto;
+  // auto-fit the new world, unless you'd zoomed out past the last automatic distance: then keep your zoom, but never
+  // closer than the new world's own framing. Zoomed in, the next world starts at its default framing again.
+  const d = dir.length(), auto = autoDist();
+  if (!keepZoom || flags.wallpaper || wasFocused) userZoom = null;
+  else if (lastSet!==null && Math.abs(d-lastSet) > .05) userZoom = d > lastAuto+.05 ? d : null;   // you zoomed since: remember it if it's out
+  const dist = userZoom!==null ? Math.max(userZoom, auto) : auto;
+  lastAuto = auto; lastSet = dist;
   camera.position.copy(controls.target).addScaledVector(dir.normalize(), dist);
   finish();
   resetTour();
