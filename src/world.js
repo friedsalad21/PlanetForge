@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { bodyMat, cloudMat, atmoMat, auroraMat, ringMat, ringPtsMat } from './materials.js';
 import { ownArrays } from './shaders.js';
-import { makeKind, applyKind, MOON_POOL, c, BLACK, WET, STORMY, MAGNETIC, VOLCANIC } from './gen.js';
+import { makeKind, applyKind, MOON_POOL, c, BLACK, WET, STORMY, MAGNETIC, VOLCANIC, rollVariant, VR } from './gen.js';
 import { Orbit, meanMotion, orbitLine } from './orbit.js';
 import { pxScale } from './scene.js';
 import { makeStation } from './extras.js';
@@ -73,6 +73,7 @@ function addVolcanoes(mats, kindName, x){
 // x: a second stream for everything added since (tilt, eccentricity, rivers, auroras, stations...)
 export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = true, system = false} = {}){
   const k = makeKind(kindName, r);
+  const shown = rollVariant(kindName, k);   // e.g. a Terran world might be a Supercontinent
   const group = new THREE.Group(), axis = new THREE.Group();
   group.add(axis);
   const body = new THREE.Mesh(LOD.body[0], clone(bodyMat));
@@ -100,7 +101,7 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
   axis.add(body, clouds, atmo);
 
   const w = {group, axis, body, clouds, atmo, cirrus:null, aurora:null, rings:null, ringPts:null, moons:[], station:null,
-    spin, k, kindName, features:[], lines:new THREE.Group()};
+    spin, k, kindName:shown, baseKind:kindName, features:[], lines:new THREE.Group()};
   axis.add(w.lines);
   let reach = 1;
   if (r() < k.rings){
@@ -119,12 +120,15 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
     const moonKind = MOON_POOL[Math.floor(r()*MOON_POOL.length)];
     const mesh = new THREE.Mesh(LOD.body[1], clone(bodyMat));
     const mk = makeKind(moonKind, r);
+    const shownMoon = rollVariant(moonKind, mk);
     applyKind(mesh.material, mk, r);
     const size = .1+r()*.18;
     mesh.scale.setScalar(size);
+    if (mk.potato) mesh.scale.set(size*mk.potato[0], size*mk.potato[1], size*mk.potato[2]);   // small and lumpy
+    if (mk.twoTone) mesh.material.uniforms.uTwoTone.value = 1;
     orbit += .35+r()*.55;
     const rx = (r()-.5)*.3, ry = r()*Math.PI*2, rz = (r()-.5)*.3;   // (were a pivot's rotation; now the orbit's tilt and phase)
-    const moon = {mesh, size, kindName:moonKind, k:mk, ring:null,
+    const moon = {mesh, size, kindName:shownMoon, k:mk, ring:null,
       orbit:new Orbit({a:orbit, e:x()<.7 ? x()*.04 : .04+x()*.1, i:Math.hypot(rx,rz), node:Math.atan2(rz,rx),
         peri:x()*Math.PI*2, M0:ry, n:meanMotion(1, orbit)})};
     mesh.material.uniforms.uSeason.value = 1;
@@ -132,6 +136,8 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
       mesh.material.uniforms.uVolcCol.value.copy(moonKind==='Sulfur moon' ? c(.11,1,.6) : c(.05,1,.55));
       moon.volcanic = true;
     }
+    if (mk.cryo && addVolcanoes([mesh.material], 'Sulfur moon', VR.r))   // ice volcanoes: geysers glowing blue-white
+      mesh.material.uniforms.uVolcCol.value.copy(c(.55,.6,.8));
     if (x() < .05){   // a rare ringed moon
       const {rings} = makeRings(x, 1.3+x()*.2, 1.8+x()*.6, null);
       shadowRings([mesh.material], rings);
@@ -200,7 +206,7 @@ export function makeWorld(r, x, kindName, {moonMax = k => k.moons, minOneMoon = 
   }
   const nVolc = addVolcanoes([body.material, clouds.material], kindName, x);
   if (nVolc){
-    bu.uVolcCol.value.copy(kindName==='Magma' ? c(.03,1,.55) : c(.06,1,.55));
+    bu.uVolcCol.value.copy(k.volcCol ?? (kindName==='Magma' ? c(.03,1,.55) : c(.06,1,.55)));
     w.features.push(nVolc>1 ? 'volcanoes' : 'a volcano');
     if (!clouds.visible){ clouds.visible = true; cu.uCloud.value = 3; }   // ash plumes need the cloud layer
   }

@@ -106,6 +106,72 @@ export const KINDS = {
     low:c(.03+j,.6,.28), high:c(.0,.7,.38), rock:c(.08,.4,.16), snow:c(.08,.9,.62), atmo:c(.03,.9,.5)}),
 };
 export const NOT_WORLD = new Set(['Gas giant','Ice giant','Hot Jupiter']);
+// names that read wrong with " world" after them (giants and their variants)
+export const notWorld = name => NOT_WORLD.has(name) || /giant|Neptune|puff|Jupiter/i.test(name);
+
+// --- variants: a different look (and name) for a kind, decided by its own random stream (VR) so that the main
+// streams, and with them every world's terrain, moons and features, stay exactly as they were. See VARIANTS.md.
+export const VR = { r: Math.random };   // set per seed by build()
+const gasPal = (a, b, cc, d, e) => ({low:a, high:b, rock:cc, snow:d, atmo:e});
+export const KIND_VARIANTS = {
+  'Terran': [
+    ['Supercontinent', (v,k) => ({sea:-.32+v()*.1, freq:.45+v()*.2, warp:.3})],
+    ['Ice-age', (v,k) => ({ice:.38+v()*.12})],
+    ['Hothouse', (v,k) => ({ice:2, sea:.12+v()*.08, cloud:-.08, low:c(.3,.6,.22), low2:c(.22,.55,.2), atmo:c(.15,.5,.65), cloudCol:c(.12,.15,.9)})],
+  ],
+  'Ocean': [
+    ['Hycean', (v,k) => ({sea:.55, cloud:-.12, deep:c(.5,.8,.1), shallow:c(.47,.7,.32), atmo:c(.5,.6,.72), atmoStr:1.4})],
+    ['Storm ocean', (v,k) => ({cloud:-.2, swirl:.8+v()*.6, storms:3})],
+    ['Purple ocean', (v,k) => ({deep:c(.78+v()*.06,.7,.14), shallow:c(.82,.55,.38), atmo:c(.75,.5,.65)})],
+  ],
+  'Jungle': [
+    ['Red forest', (v,k) => ({low:c(.98+v()*.03,.6,.22), low2:c(.02,.5,.15), high:c(.95,.35,.2), atmo:c(.02,.4,.6)})],
+    ['Fungal', (v,k) => ({low:c(.08,.25,.62), low2:c(.85,.25,.55), high:c(.1,.2,.5), cloudCol:c(.85,.15,.9), atmo:c(.8,.35,.65)})],
+  ],
+  'Savanna': [['Autumn', (v,k) => ({low:c(.06,.65,.42), low2:c(.02,.6,.35), high:c(.09,.4,.35)})]],
+  'Desert': [
+    ['Salt flat', (v,k) => ({terrace:.5, sand:c(.1,.1,.86), low:c(.1,.08,.8), low2:c(.08,.15,.7), high:c(.07,.2,.55), atmo:c(.58,.4,.7)})],
+    ['Glass desert', (v,k) => ({sand:c(.42,.25,.45), low:c(.4,.3,.38), low2:c(.12,.3,.45), high:c(.45,.25,.3), atmo:c(.45,.4,.6)})],
+  ],
+  'Canyon': [['Badlands', (v,k) => ({ridge:.9, terrace:.8, low:c(.01,.65,.38), low2:c(.06,.5,.55), high:c(.04,.55,.5)})]],
+  'Volcanic': [['Sulfur world', (v,k) => ({low:c(.13,.85,.5), low2:c(.09,.8,.42), high:c(.12,.7,.65), rock:c(.03,.6,.3), sand:c(.15,.7,.6), atmo:c(.12,.7,.55), volcCol:c(.12,1,.6)})]],
+  'Magma': [['Cooling crust', (v,k) => ({sea:.02+v()*.06, ridge:.8, low:c(0,0,.07), high:c(0,0,.11)})]],
+  'Iron': [['Chthonian', (v,k) => ({glow:.35, crater:.2, low:c(.03,.3,.18), high:c(.02,.2,.25), rock:c(.6,.05,.35), atmo:c(.03,.8,.4)})]],
+  'Carbon': [['Diamond', (v,k) => ({sea:-1, ridge:.6, low:c(.6,.08,.55), low2:c(.62,.1,.7), high:c(.6,.05,.85), rock:c(.6,.05,.95), snow:WHITE, atmo:c(.6,.3,.7)})]],
+  'Frozen': [
+    ['Nitrogen ice', (v,k) => ({snow:c(.07,.25,.93), low:c(.06,.45,.55), high:c(.05,.35,.7), sand:c(.04,.5,.4), atmo:c(.6,.3,.75)})],
+    ['Black ice', (v,k) => ({snow:c(.6,.08,.32), low:c(.6,.08,.22), high:c(.6,.06,.3), rock:c(.6,.05,.4), atmo:c(.6,.3,.5)})],
+  ],
+  'Snowball': [['Blue ice', (v,k) => ({snow:c(.55,.55,.8)})]],
+  'Crystal': [['Obsidian', (v,k) => ({sand:c(.75,.2,.08), low:c(.7,.25,.1), low2:c(.8,.3,.14), high:c(.72,.2,.2), rock:c(.7,.15,.35), snow:c(.7,.2,.6)})]],
+  'Eyeball': [
+    ['Lava eye', (v,k) => ({lava:1, glow:.3, deep:c(.0,1,.3), shallow:c(.08,1,.55), atmo:c(.03,.8,.5)})],
+    ['Ocean eye', (v,k) => ({sea:.18+v()*.08})],
+  ],
+  'Gas giant': [
+    ['Super-puff', (v,k) => ({atmoStr:2.2, bands:4+v()*4, ...gasPal(c(.1,.25,.8), c(.08,.25,.7), c(.06,.2,.6), c(.1,.2,.92), c(.1,.4,.75))})],
+    ['Methane giant', (v,k) => gasPal(c(.58,.5,.6), c(.6,.55,.45), c(.62,.5,.35), c(.57,.3,.9), c(.58,.7,.6))],
+    ['Ammonia giant', (v,k) => gasPal(c(.12,.2,.85), c(.1,.25,.72), c(.08,.25,.6), c(.12,.15,.95), c(.12,.3,.75))],
+    ['Tholin giant', (v,k) => gasPal(c(.06,.55,.45), c(.04,.6,.32), c(.03,.5,.22), c(.08,.4,.7), c(.05,.6,.5))],
+  ],
+  'Ice giant': [['Mini-Neptune', (v,k) => ({bands:2+v()*3, low:c(.47,.45,.6), high:c(.5,.5,.5), atmo:c(.48,.6,.65)})]],
+  'Moon': [
+    ['Two-tone moon', (v,k) => ({twoTone:1})],
+    ['Potato moon', (v,k) => ({potato:[1.25+v()*.35, .7+v()*.15, .85+v()*.2]})],
+  ],
+  'Icy moon': [
+    ['Geyser moon', (v,k) => ({cryo:true, crater:.3})],
+    ['Ocean moon', (v,k) => ({crater:.1, ridge:.7, sand:c(.06,.35,.5), low:c(.56,.12,.84), high:c(.55,.08,.9), rock:c(.06,.4,.45), snow:WHITE})],
+  ],
+};
+// maybe turn kind k (already made from the main stream) into one of its variants; returns the name to show
+export function rollVariant(name, k){
+  const list = KIND_VARIANTS[name], v = VR.r;
+  if (!list || v() >= .35) return name;
+  const [vname, f] = list[Math.floor(v()*list.length)];
+  Object.assign(k, f(v, k));
+  return vname;
+}
 export const KIND_POOL = ['Terran','Terran','Terran','Ocean','Archipelago','Jungle','Savanna','Swamp','Tundra','Alien','Alien',
   'Desert','Dune','Canyon','Volcanic','Magma','Frozen','Snowball','Toxic','Barren','Iron','Carbon','Crystal','Eyeball',
   'Cloud','Haze','Gas giant','Gas giant','Gas giant','Ice giant','Hot Jupiter'];

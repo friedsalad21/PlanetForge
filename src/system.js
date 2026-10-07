@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { S, opts } from './state.js';
 import { scene, skyScene, tilt, root, camera, renderer, SUN, sunSprite, CORONA_TEX, SOFT_TEX, keyLight, starLight, pxScale } from './scene.js';
 import { starMat, nebulaMat, blackHoleMat, dotMat } from './materials.js';
-import { rngFor, c, WHITE, KIND_POOL, SUN_POOL, STAR_POOL, STAR_TYPES, STAR_PHYS, EXOTIC_STARS, ROGUE_POOL, NOT_WORLD,
+import { rngFor, c, WHITE, KIND_POOL, VR, notWorld, SUN_POOL, STAR_POOL, STAR_TYPES, STAR_PHYS, EXOTIC_STARS, ROGUE_POOL, NOT_WORLD,
   makeName } from './gen.js';
 import { makeWorld, disposeWorld, describe, updateWorld, moonName, lodWorld } from './world.js';
 import { Orbit, meanMotion, visMass, orbitLine } from './orbit.js';
@@ -69,6 +69,7 @@ export function build(seed, o = {}){
   S.seed = seed;
   force = o;
   const r = rngFor(seed), x = extraRng(seed);
+  VR.r = rngFor(seed ^ 0x6a09e667f3bcc909n);   // variants have their own stream (see gen.js)
   const pick = a => a[Math.floor(r()*a.length)];
   const roll = r();
   S.mode = o.mode ?? (roll<.7 ? 'planet' : roll<.9 ? 'star' : 'blackhole');
@@ -128,13 +129,14 @@ function buildPlanet(r, x, pick){
   addMoons(w, 'p0');
 
   const {kindName:kn, k} = w, nMoons = w.moons.filter(m => !m.shepherd).length;
-  S.bits = [NOT_WORLD.has(kn) ? kn : kn+' world', nMoons ? `${nMoons} moon${nMoons>1?'s':''}` : 'no moons'];
+  S.bits = [notWorld(kn) ? kn : kn+' world', nMoons ? `${nMoons} moon${nMoons>1?'s':''}` : 'no moons'];
   if (w.rings) S.bits.push('ringed');
   if (k.locked) S.bits.push('tidally locked');
   if (k.city) S.bits.push('inhabited');
   if (w.station) S.bits.push(w.station.derelict ? 'a derelict station in orbit' : 'a space station in orbit');
   S.bits.push(S.rogue ? 'a rogue planet, drifting between the stars' : `orbiting ${/^[aeiou]/i.test(St.name) ? 'an' : 'a'} ${St.name}`);
-  S.finds.push(['planet', .7], S.rogue ? ['rogue', .04] : [kn, KIND_POOL.filter(n => n===kn).length/KIND_POOL.length]);
+  S.finds.push(['planet', .7], S.rogue ? ['rogue', .04] : [w.baseKind, KIND_POOL.filter(n => n===w.baseKind).length/KIND_POOL.length]);
+  if (kn!==w.baseKind) S.finds.push([kn, .35]);
   worldFinds(w, 1);
   return w.reach;
 }
@@ -376,7 +378,7 @@ export function bodyInfo(b){
   const w = b.world;
   const day = sp => { const h = 2*Math.PI/Math.abs(sp)/10; return h < 48 ? `${h.toFixed(h<10?1:0)} h` : `${(h/24).toFixed(1)} days`; };
   if (b.type==='planet'){
-    const k = w.k, f = [NOT_WORLD.has(w.kindName) ? w.kindName : w.kindName+' world'];
+    const k = w.k, f = [notWorld(w.kindName) ? w.kindName : w.kindName+' world'];
     const nM = w.moons.filter(m => !m.shepherd).length;
     f.push(nM ? `${nM} moon${nM>1?'s':''}` : 'no moons');
     if (w.rings) f.push('ringed');

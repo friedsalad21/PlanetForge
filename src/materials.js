@@ -13,7 +13,7 @@ export const bodyMat = new THREE.ShaderMaterial({
     uGas:num(0), uBands:num(10), uCity:num(0), uCrater:num(0), uTime:num(0),
     uWarp:num(0), uRidge:num(0), uTerrace:num(0), uLocked:num(0), uGlow:num(0), uMoist:num(0),
     uTurb:num(2), uStorms:num(1), uSharp:num(0), uStormKind:num(0), uHex:num(0),
-    uSeason:num(0), uRivers:num(0), uVolcCol:col3(),
+    uSeason:num(0), uRivers:num(0), uVolcCol:col3(), uTwoTone:num(0),
     uDeep:col3(), uShallow:col3(), uSand:col3(), uLow:col3(), uLow2:col3(), uHigh:col3(), uRock:col3(), uSnow:col3(), uAtmo:col3(),
     uSun:v3(), uSunCol:col3(), uCam:v3(), ...ringUniforms(),
     ...cloudUniforms(), uCSeed:v3(), uCloudShadow:num(0), uCloudRot:num(0),
@@ -22,6 +22,7 @@ export const bodyMat = new THREE.ShaderMaterial({
   vertexShader: VERT,
   fragmentShader: NOISE + RINGFN + `
   uniform vec3 uSeed,uDeep,uShallow,uSand,uLow,uLow2,uHigh,uRock,uSnow,uAtmo,uSun,uSunCol,uCam,uCSeed,uVolcCol;
+  uniform float uTwoTone;
   uniform float uFreq,uSea,uIce,uLava,uGas,uBands,uCity,uCrater,uTime,uWarp,uRidge,uTerrace,uLocked,uGlow,uMoist,uTurb,uStorms,uSharp;
   uniform float uCloudShadow,uCloudRot,uSeason,uRivers,uHex,uStormKind;
   varying vec3 vPos;` + CLOUDFN + ECLIPSE + VOLC + `
@@ -202,6 +203,7 @@ export const bodyMat = new THREE.ShaderMaterial({
         col=mix(col,uRock*.35,exp(-d*d*12.)*.6);   // dark fresh basalt around the vent
       }
       glow*=1.-ice;
+      if(uTwoTone>0.) col*=mix(1.,.16,smoothstep(-.35,.35,p.x+snoise(p*3.+uSeed)*.15));   // one dark hemisphere (Iapetus)
     }
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
