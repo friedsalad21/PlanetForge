@@ -130,7 +130,7 @@ export const KIND_VARIANTS = {
   ],
   'Savanna': [['Autumn', (v,k) => ({low:c(.06,.65,.42), low2:c(.02,.6,.35), high:c(.09,.4,.35)})]],
   'Desert': [
-    ['Salt flat', (v,k) => ({terrace:.5, sand:c(.1,.1,.86), low:c(.1,.08,.8), low2:c(.08,.15,.7), high:c(.07,.2,.55), atmo:c(.58,.4,.7)})],
+    ['Salt flat', (v,k) => ({terrace:.5, sand:c(.1,.08,.9), low:c(.1,.06,.88), low2:c(.08,.12,.8), high:c(.08,.12,.75), rock:c(.06,.15,.6), atmo:c(.58,.4,.7)})],
     ['Glass desert', (v,k) => ({sand:c(.42,.25,.45), low:c(.4,.3,.38), low2:c(.12,.3,.45), high:c(.45,.25,.3), atmo:c(.45,.4,.6)})],
   ],
   'Canyon': [['Badlands', (v,k) => ({ridge:.9, terrace:.8, low:c(.01,.65,.38), low2:c(.06,.5,.55), high:c(.04,.55,.5)})]],
@@ -161,7 +161,7 @@ export const KIND_VARIANTS = {
   ],
   'Icy moon': [
     ['Geyser moon', (v,k) => ({cryo:true, crater:.3})],
-    ['Ocean moon', (v,k) => ({crater:.1, ridge:.7, sand:c(.06,.35,.5), low:c(.56,.12,.84), high:c(.55,.08,.9), rock:c(.06,.4,.45), snow:WHITE})],
+    ['Ocean moon', (v,k) => ({crater:.1, ridge:.35, sand:c(.07,.3,.62), low:c(.56,.1,.86), high:c(.55,.06,.92), rock:c(.07,.25,.72), snow:WHITE})],
   ],
 };
 // maybe turn kind k (already made from the main stream) into one of its variants; returns the name to show
@@ -194,13 +194,23 @@ export const STAR_TYPES = {
   'white dwarf': [.58,.7,.94,.32], 'brown dwarf': [.97,.55,.4,.7], 'neutron star':[.6,.3,1,.07],
   // rarer finds, rolled separately so existing seeds keep their stars
   'Wolf-Rayet star':[.66,.8,.88,1.3], 'Cepheid variable':[.13,.9,.84,1.9], 'protostar':[.04,1,.6,1.2],
+  // star variants (rolled on the variant stream, see STAR_VARIANTS)
+  'red supergiant':[.02,1,.58,3.4], 'blue supergiant':[.6,.9,.86,2.6], 'yellow hypergiant':[.11,.95,.78,3],
+  'carbon star':[.99,1,.42,2.2], 'flare star':[.02,1,.66,.55], 'magnetar':[.76,.5,.92,.07], 'T Tauri star':[.07,.9,.7,1.25],
+  'fast-spinning white star':[.6,.3,.95,1.3],
 };
 // mass (in suns) sets orbital speeds; luminosity weights how much each star lights a planet
 export const STAR_PHYS = {
   'red dwarf':[.3,.3], 'orange dwarf':[.75,.6], 'yellow dwarf':[1,1], 'white star':[1.8,2], 'blue giant':[12,6],
   'red giant':[1.1,3], 'white dwarf':[.7,.3], 'brown dwarf':[.06,.08], 'neutron star':[1.6,.4],
   'Wolf-Rayet star':[18,8], 'Cepheid variable':[6,4], 'protostar':[1,1.5],
+  'red supergiant':[15,12], 'blue supergiant':[20,14], 'yellow hypergiant':[30,16], 'carbon star':[3,5], 'flare star':[.25,.3],
+  'magnetar':[1.8,.5], 'T Tauri star':[.9,1.4], 'fast-spinning white star':[2,2.4],
 };
+// which stars can become which variant (about 1 system in 8)
+export const STAR_VARIANTS = { 'red giant':['red supergiant','carbon star'], 'blue giant':['blue supergiant','yellow hypergiant'],
+  'red dwarf':['flare star'], 'neutron star':['magnetar'], 'yellow dwarf':['T Tauri star'], 'orange dwarf':['T Tauri star'],
+  'white star':['fast-spinning white star'] };
 export const EXOTIC_STARS = ['Wolf-Rayet star','Cepheid variable','protostar'];
 export const SUN_POOL = ['red dwarf','red dwarf','red dwarf','orange dwarf','orange dwarf','yellow dwarf','yellow dwarf',
   'white star','blue giant','red giant','white dwarf','brown dwarf'];

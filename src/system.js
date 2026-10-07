@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { S, opts } from './state.js';
 import { scene, skyScene, tilt, root, camera, renderer, SUN, sunSprite, CORONA_TEX, SOFT_TEX, keyLight, starLight, pxScale } from './scene.js';
 import { starMat, nebulaMat, blackHoleMat, dotMat } from './materials.js';
-import { rngFor, c, WHITE, KIND_POOL, VR, notWorld, SUN_POOL, STAR_POOL, STAR_TYPES, STAR_PHYS, EXOTIC_STARS, ROGUE_POOL, NOT_WORLD,
+import { rngFor, c, WHITE, KIND_POOL, VR, notWorld, STAR_VARIANTS, SUN_POOL, STAR_POOL, STAR_TYPES, STAR_PHYS, EXOTIC_STARS, ROGUE_POOL, NOT_WORLD,
   makeName } from './gen.js';
 import { makeWorld, disposeWorld, describe, updateWorld, moonName, lodWorld } from './world.js';
 import { Orbit, meanMotion, visMass, orbitLine } from './orbit.js';
@@ -167,7 +167,11 @@ function buildStarSystem(r, x, pick){
     exotic = EXOTIC_STARS[Math.floor(x()*EXOTIC_STARS.length)];
     Object.assign(A, starOfType(exotic, x));
   }
-  const isBinary = A.name!=='neutron star' && r()<.3;
+  // a rarer variant of the star (its own stream, so the rest of the system stays as it was)
+  let starVar = null;
+  const vlist = !force.star && !exotic && STAR_VARIANTS[A.name];
+  if (vlist && VR.r() < .12){ starVar = vlist[Math.floor(VR.r()*vlist.length)]; Object.assign(A, starOfType(starVar, VR.r)); }
+  const isBinary = A.name!=='neutron star' && starVar!=='magnetar' && r()<.3;
   const B = isBinary ? pickStar(r, SUN_POOL) : null;
   const sA = makeStar(A, r);
   S.stars.push(sA);
@@ -204,6 +208,18 @@ function buildStarSystem(r, x, pick){
     sA.pulse = t => { const p = Math.sin(t/period*Math.PI*2); sA.mesh.scale.setScalar(A.size*(1+.07*p)); sA.bright = 1+.3*p; };
   }
   if (exotic) S.finds.push([exotic, .1/3]);
+  if (starVar){
+    S.finds.push([starVar, .12/vlist.length]);
+    const v = VR.r, s = sA;
+    if (starVar==='flare star' || starVar==='magnetar'){   // sudden flares, a few a minute
+      const a = .5+v(), b = 1.3+v(), cc = .23+v()*.2, big = starVar==='magnetar' ? 6 : 3, base = starVar==='magnetar' ? 30 : 4.4;
+      s.pulse = t => { const f = Math.max(0, Math.sin(t*a)*Math.sin(t*b)*Math.sin(t*cc)); s.bright = 1+big*f**10; s.corona.scale.setScalar(base*(1+f**10*.8)); };
+    }
+    if (starVar==='magnetar'){ s.corona.material.map = SOFT_TEX; s.corona.scale.setScalar(30); s.corona.material.color.copy(c(.76,.8,.55)); }
+    if (starVar==='yellow hypergiant'){ const per = 14+v()*10; s.pulse = t => { const p = Math.sin(t/per*Math.PI*2); s.mesh.scale.setScalar(A.size*(1+.05*p)); s.bright = 1+.2*p; }; }
+    if (starVar==='fast-spinning white star') s.mesh.scale.y *= .78;   // squashed by its own spin
+    if (starVar==='T Tauri star'){ const per = 3+v()*4; s.pulse = t => { s.bright = 1+.18*Math.sin(t/per*Math.PI*2)+.1*Math.sin(t*2.3); }; }
+  }
   // very rare: a Dyson swarm or shell around the main star
   if (!exotic && !['neutron star','brown dwarf'].includes(A.name) && x() < .012){
     const R = reach*1.7+.35;

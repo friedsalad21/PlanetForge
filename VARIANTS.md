@@ -7,6 +7,7 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 - `- [ ]` not in yet
 - ⭐ a top pick to add next (most "wow" for the work)
 - Indented items are **variations**: different looks or flavours of the same thing, so no two finds are alike
+- Variants are rolled on their own random stream (`VR` in `src/gen.js`): about 1 in 3 worlds of a kind, and 1 in 8 stars of a type, becomes a variant, and every seed keeps its terrain, moons and features
 
 **Last updated: 7 October 2026**
 
@@ -17,31 +18,31 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 ### Rocky and wet worlds
 - [x] Terran: continents, oceans, ice caps, clouds, rivers and lakes
   - [x] Seasons on the ice caps, tilted and backwards-spinning worlds
-  - [ ] Supercontinent worlds (one giant landmass, like Pangaea)
-  - [ ] Ice-age Earths: ice down to the mid-latitudes
-  - [ ] Hothouse Earths: no ice, swampy and stormy, high seas
+  - [x] Supercontinent worlds (one giant landmass, like Pangaea)
+  - [x] Ice-age Earths: ice down to the mid-latitudes
+  - [x] Hothouse Earths: no ice, swampy and stormy, high seas
   - [ ] Ring-of-islands worlds (a sunken giant crater)
   - [ ] Twilight-band life on tidally locked Terrans
 - [x] Ocean worlds
-  - [ ] Global storm oceans with endless hurricanes
-  - [ ] Hycean worlds: hydrogen skies over warm, deep oceans
+  - [x] Global storm oceans with endless hurricanes
+  - [x] Hycean worlds: hydrogen skies over warm, deep oceans
   - [ ] Ice-lidded oceans: sea under a cracked, frozen shell
-  - [ ] Coloured seas: purple, red or green from alien microbes
+  - [x] Coloured seas: purple, red or green from alien microbes
 - [x] Archipelago, Jungle, Savanna, Swamp, Tundra
-  - [ ] Mushroom and fungal forests (pale, glowing at night)
-  - [ ] Red or black vegetation (plants tuned to a red dwarf's light)
+  - [x] Mushroom and fungal forests (pale, glowing at night)
+  - [x] Red or black vegetation (plants tuned to a red dwarf's light)
   - [ ] Bioluminescent oceans that glow on the night side
-  - [ ] Seasonal colour change: forests turning autumn red with the seasons
+  - [x] Seasonal colour change: forests turning autumn red with the seasons
 - [x] Alien: strange colour palettes
   - [ ] Crystal-forest worlds, coral-reef continents, giant-fungus plains
 - [x] Desert, Dune, Canyon
-  - [ ] Salt-flat worlds (white, cracked, mirror-like after rain)
-  - [ ] Glass deserts (sand fused by an ancient impact or war)
+  - [x] Salt-flat worlds (white, cracked, mirror-like after rain)
+  - [x] Glass deserts (sand fused by an ancient impact or war)
   - [ ] Dust-storm worlds: planet-wide storms that hide the surface for a while, like Mars
-  - [ ] Mesa and badlands worlds, eroded red towers
+  - [x] Mesa and badlands worlds, eroded red towers
 - [x] Eyeball worlds (tidally locked: one frozen side, one scorched)
-  - [ ] Lava-eye: molten facing side, ice on the far side
-  - [ ] Ocean-eye: one round sea facing the sun, the rest frozen
+  - [x] Lava-eye: molten facing side, ice on the far side
+  - [x] Ocean-eye: one round sea facing the sun, the rest frozen
 - [x] Cloud worlds (Venus-like) and Haze worlds (Titan-like)
   - [ ] Sulfuric-acid rain and lightning-lit cloud tops
   - [ ] Methane lakes and rivers glimpsed through the haze (Titan)
@@ -50,13 +51,13 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 ### Hot worlds
 - [x] Volcanic worlds with glowing calderas, lava flows and ash plumes
 - [x] Magma worlds (lava oceans)
-  - [ ] Io-style: hundreds of volcanoes, sulfur-yellow and orange
-  - [ ] Cooling crust: black plates floating on glowing cracks
+  - [x] Io-style: hundreds of volcanoes, sulfur-yellow and orange
+  - [x] Cooling crust: black plates floating on glowing cracks
   - [ ] Lava-rain worlds: rock vapour that condenses and falls
 - [x] Iron worlds, Carbon worlds
   - [ ] ⭐ Disintegrating planets: rock boiling off into a long, comet-like tail
-  - [ ] Chthonian planets: the stripped iron core of a gas giant that got too close
-  - [ ] Diamond worlds: carbon crust with glittering, faceted plains
+  - [x] Chthonian planets: the stripped iron core of a gas giant that got too close
+  - [x] Diamond worlds: carbon crust with glittering, faceted plains
   - [ ] Iron-rain worlds (like WASP-76b)
   - [ ] Molten-metal seas
 - [ ] Synestia: a doughnut of vaporised rock after a giant collision
@@ -65,26 +66,26 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 - [x] Frozen, Snowball
   - [x] Long patchy ice fractures
   - [ ] Cryovolcanic worlds: ice volcanoes and geyser plumes
-  - [ ] Nitrogen-glacier worlds with heart-shaped plains (Pluto)
-  - [ ] Blue-ice worlds, black-ice worlds (dark, dusty ice)
+  - [x] Nitrogen-glacier worlds with heart-shaped plains (Pluto)
+  - [x] Blue-ice worlds, black-ice worlds (dark, dusty ice)
   - [ ] Frost worlds lit only by auroras (rogue planets)
 
 ### Crystal worlds
 - [x] Prismatic crystal, geode fields, glass seas, ice-crystal spires
   - [ ] Singing-crystal worlds that refract sunlight into rainbow bands across the surface
   - [ ] Crystal rings: a ring system of glittering shards
-  - [ ] Obsidian worlds: black volcanic glass
+  - [x] Obsidian worlds: black volcanic glass
 
 ### Giant planets
 - [x] Gas giants with bands, storms, vortices, pearl storms, dark spots, polar cyclones and faint polar hexagons
 - [x] Ice giants (with tipped magnetic fields and off-axis auroras), Hot Jupiters
-  - [ ] Puffy super-puffs: Jupiter-sized, candy-floss light, with huge hazy atmospheres
+  - [x] Puffy super-puffs: Jupiter-sized, candy-floss light, with huge hazy atmospheres
   - [ ] Brown-dwarf-like giants glowing faint red at night
-  - [ ] Ammonia-cloud whites, sulfur yellows, methane blues, tholin browns
+  - [x] Ammonia-cloud whites, sulfur yellows, methane blues, tholin browns
   - [ ] Great storms that merge and split over time
   - [ ] Hot Jupiters with glowing night sides and a stripped, streaming atmosphere
   - [ ] Banded worlds with wildly tilted spin (Uranus-like)
-- [ ] Sub-Neptunes and mini-Neptunes (the most common planets in the real galaxy)
+- [x] Sub-Neptunes and mini-Neptunes (the most common planets in the real galaxy)
 - [ ] ⭐ Super-ring systems: rings 200 times wider than Saturn's (like J1407b), with gaps carved by moons
 
 ### Unusual arrangements
@@ -103,13 +104,13 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 
 - [x] Cratered moons, icy moons, sulfur (volcanic) moons, rusty moons, dark moons
 - [x] Ringed moons (rare), shepherd moons in ring gaps, eclipses both ways
-  - [ ] ⭐ Cryovolcanic moons with geysers shooting ice into space (Enceladus)
-  - [ ] Ocean moons: cracked ice shells over hidden seas (Europa)
+  - [x] ⭐ Cryovolcanic moons with geysers shooting ice into space (Enceladus)
+  - [x] Ocean moons: cracked ice shells over hidden seas (Europa)
   - [ ] Captured moons on backward, tilted orbits (Triton)
   - [ ] Moon-moons: a moon with a moon of its own
-  - [ ] Two-tone moons: one bright and one dark hemisphere (Iapetus)
+  - [x] Two-tone moons: one bright and one dark hemisphere (Iapetus)
   - [ ] Equatorial-ridge moons (Iapetus's walnut ridge)
-  - [ ] Potato moons: small, lumpy, irregular (Phobos)
+  - [x] Potato moons: small, lumpy, irregular (Phobos)
   - [ ] Habitable moons around gas giants, with the giant filling the sky
   - [ ] Tidally heated moons with glowing cracks
 - [x] Asteroid belts with real cratered rocks up close
@@ -134,13 +135,13 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 - [x] Red, orange and yellow dwarfs; white stars; blue giants; red giants; white dwarfs; brown dwarfs
 - [x] Neutron stars and pulsars, Wolf-Rayet stars, Cepheid variables (pulsing), protostars in dusty disks
   - [x] Sunspots and granulation on every star
-  - [ ] ⭐ Red supergiants: so big they'd swallow the inner system (Betelgeuse)
-  - [ ] ⭐ Magnetars: neutron stars with monstrous magnetic fields and starquakes
-  - [ ] Blue supergiants and unstable hypergiants shedding shells (Eta Carinae)
-  - [ ] T Tauri stars: young stars with jets from their poles
-  - [ ] Flare stars: red dwarfs that suddenly flare up
-  - [ ] Carbon stars: deep red and sooty
-  - [ ] Fast-spinning stars squashed into an oval (Vega, Altair)
+  - [x] ⭐ Red supergiants: so big they'd swallow the inner system (Betelgeuse)
+  - [x] ⭐ Magnetars: neutron stars with monstrous magnetic fields and starquakes
+  - [x] Blue supergiants and unstable hypergiants shedding shells (Eta Carinae)
+  - [x] T Tauri stars: young stars with jets from their poles
+  - [x] Flare stars: red dwarfs that suddenly flare up
+  - [x] Carbon stars: deep red and sooty
+  - [x] Fast-spinning stars squashed into an oval (Vega, Altair)
   - [ ] Blue stragglers, subdwarfs
   - [ ] Black dwarfs: cold dead white dwarfs (theoretical)
   - [ ] Quark stars, boson stars (theoretical)
