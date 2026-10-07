@@ -59,7 +59,7 @@ The repo doubles as a Wallpaper Engine web wallpaper. In Wallpaper Engine, choos
 
 ## Code
 
-Notes for making changes (keeping these docs up to date, seed stability, shader pitfalls) are in [`CLAUDE.md`](CLAUDE.md); what's done and what's next is in the [roadmap](ROADMAP.md).
+Notes for making changes (keeping these docs up to date, seed stability, shader pitfalls) are in [`CLAUDE.md`](CLAUDE.md); what's done and what's next is in the [roadmap](ROADMAP.md), and everything that could be in space (and what's in already) is in [`VARIANTS.md`](VARIANTS.md).
 
 `index.html` is just the page; the code is in `src/` as ES modules:
 

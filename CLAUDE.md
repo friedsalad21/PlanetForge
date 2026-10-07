@@ -4,7 +4,7 @@ Notes for anyone (human or AI) making changes here. Sean (the owner) asked for t
 
 ## Every change
 
-- **Update the docs in the same commit:** tick or add items in `ROADMAP.md` (and bump its "Last updated" line), and keep `README.md` in step with what the site does (features, controls, links, the code table). New controls also go in the help panel in `index.html`, and new wallpaper settings in `project.json`.
+- **Update the docs in the same commit:** tick or add items in `ROADMAP.md` (and bump its "Last updated" line), tick anything new in `VARIANTS.md` (the list of every kind of thing in space and which we have), and keep `README.md` in step with what the site does (features, controls, links, the code table). New controls also go in the help panel in `index.html`, and new wallpaper settings in `project.json`.
 - **Commit and push to `main`.** GitHub Pages deploys from `main` automatically; don't wait for it to go live.
 - **Leave nothing running:** stop local test servers and browsers when done.
 

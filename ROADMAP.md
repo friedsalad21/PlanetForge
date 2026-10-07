@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (zoomed out is kept between random worlds; zoomed in goes back to the default framing).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (new: [VARIANTS.md](VARIANTS.md), everything in space and what we have of it).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
