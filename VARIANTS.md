@@ -122,8 +122,8 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
   - [ ] Sungrazers that break up near the star
   - [ ] Green comets (glowing carbon gas), multi-tailed comets
   - [ ] Comet showers after a star passes close by
-- [ ] ⭐ Kuiper belts: an icy ring of dwarf planets beyond the planets
-- [ ] ⭐ Oort clouds: a faint shell of comets around a whole system
+- [x] ⭐ Kuiper belts: an icy ring of dwarf planets beyond the planets
+- [x] ⭐ Oort clouds: a faint shell of comets around a whole system
 - [ ] Dwarf planets with their own moons (Pluto and Charon)
 - [ ] Interstellar visitors passing through (like ʻOumuamua, a strange cigar shape)
 - [ ] Meteor showers and debris trails across a planet's orbit
@@ -151,7 +151,7 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 
 ### Star systems
 - [x] Single stars, binaries, trinaries, wide binaries, circumbinary planets
-  - [ ] ⭐ Contact binaries: two stars touching, one peanut-shaped glowing envelope
+  - [x] ⭐ Contact binaries: two stars touching, one peanut-shaped glowing envelope
   - [ ] ⭐ Mass-transfer binaries: a stream of gas pulled off one star into a glowing disk around the other
   - [ ] Eclipsing binaries that visibly dim each other
   - [ ] Quadruple and higher systems (pairs of pairs)
@@ -164,8 +164,9 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 ## Explosions and endings
 
 - [x] Supernova remnants (tangled filaments), planetary nebulae (glowing shells with a bright waist)
-  - [ ] Bipolar planetary nebulae (butterfly and hourglass shapes)
-  - [ ] Ring nebulae, cat's-eye spirals, nested shells
+  - [x] Bipolar planetary nebulae (butterfly and hourglass shapes)
+  - [x] Ring nebulae
+  - [ ] Cat's-eye spirals, nested shells
 - [ ] ⭐ A live supernova: very rare, a star in the middle of exploding, outshining everything
 - [ ] Novae: a white dwarf flaring on and off
 - [ ] Kilonovae: two neutron stars merging
@@ -199,7 +200,7 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
   - [ ] ⭐ Dark nebulae: black silhouettes against the stars (the Horsehead)
   - [ ] Bok globules: small dark clouds about to form stars
   - [ ] Herbig–Haro objects: glowing jets from newborn stars
-  - [ ] Debris disks around older stars
+  - [x] Debris disks around older stars
   - [ ] Supernova-shocked gas, wind-blown bubbles (Wolf-Rayet bubbles are in)
   - [ ] Molecular cloud complexes spanning a whole galaxy arm
   - [ ] Zodiacal light: a faint dust glow inside a system
@@ -211,9 +212,11 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 - [x] Open clusters (in the arms), globular clusters (in the halo)
 - [x] Spiral, barred spiral, elliptical and irregular galaxies, dwarf galaxies, starburst galaxies, faded red spirals
 - [x] Galaxy clusters, filaments and the cosmic web
-  - [ ] ⭐ Colliding and merging galaxies with long tidal tails
-  - [ ] Ring galaxies (one galaxy punched through another), lenticular galaxies, polar-ring galaxies
-  - [ ] Grand-design spirals vs flocculent (patchy) spirals
+  - [x] ⭐ Colliding galaxies: pairs pulled right up against each other (long tidal tails still to do)
+  - [x] Lenticular galaxies (a smooth disk with no arms)
+  - [ ] Ring galaxies (one galaxy punched through another), polar-ring galaxies
+  - [x] Grand-design spirals (two clean, bold arms)
+  - [ ] Flocculent (patchy) spirals
   - [ ] Satellite galaxies orbiting a big one, stellar streams from eaten dwarfs
   - [ ] Active galaxies with jets, Seyfert galaxies, quasars
   - [ ] Galaxies with a double nucleus (two black holes)
@@ -253,6 +256,28 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
   - [ ] Starlight shadows: rings casting their shadows on moons
 
 ---
+
+## Variants in the generator
+
+What the variant stream can turn things into today (`KIND_VARIANTS` and `STAR_VARIANTS` in `src/gen.js`, the rest in `src/system.js`, `src/galaxymodel.js` and `src/universe.js`):
+
+| Base | Can become |
+|---|---|
+| Terran | Supercontinent, Ice-age, Hothouse |
+| Ocean | Hycean, Storm ocean, Purple ocean |
+| Archipelago · Tundra · Swamp | Atoll world · Permafrost · Bog world |
+| Jungle · Savanna · Alien | Red forest, Fungal · Autumn · Teal-sea alien |
+| Desert · Dune · Canyon | Salt flat, Glass desert · White dunes · Badlands |
+| Volcanic · Magma · Toxic | Sulfur world · Cooling crust · Acid world |
+| Iron · Carbon · Barren | Chthonian · Diamond · Scorched |
+| Frozen · Snowball · Crystal | Nitrogen ice, Black ice · Blue ice · Obsidian |
+| Eyeball · Cloud · Haze | Lava eye, Ocean eye · Sulfur clouds · Methane haze |
+| Gas giant | Super-puff, Methane giant, Ammonia giant, Tholin giant |
+| Ice giant · Hot Jupiter | Mini-Neptune · Inferno giant |
+| Moons | Two-tone, Potato, Geyser, Ocean, Io, Red dust and Tar moons |
+| Stars | Red and blue supergiants, yellow hypergiant, carbon star, flare star, magnetar, T Tauri star, fast-spinning white star |
+| Systems | Contact binaries, Kuiper belts, Oort clouds, debris disks, butterfly and ring nebulae |
+| Galaxies | Lenticular, grand-design spirals, colliding pairs (plus dwarfs, starbursts and faded spirals) |
 
 ## Top picks
 

@@ -7,7 +7,7 @@ export const S = {
   worlds: [],              // generated planets in the scene
   stars: [],               // stars of a system
   bodies: [],              // everything you can click / fly to (see addBody)
-  comets: [], shells: [], belt: null, dyson: null, pulsar: null, bh: null, disk: null,
+  comets: [], shells: [], extras: [], belt: null, dyson: null, pulsar: null, bh: null, disk: null,
   sysName: '', bits: [], finds: [], rarity: null,
   fitDist: 3.6, minDist: 1.15,
   sunCol: new THREE.Color(), rogue: false,

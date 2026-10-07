@@ -163,6 +163,19 @@ export const KIND_VARIANTS = {
     ['Geyser moon', (v,k) => ({cryo:true, crater:.3})],
     ['Ocean moon', (v,k) => ({crater:.1, ridge:.35, sand:c(.07,.3,.62), low:c(.56,.1,.86), high:c(.55,.06,.92), rock:c(.07,.25,.72), snow:WHITE})],
   ],
+  'Sulfur moon': [['Io moon', (v,k) => ({low:c(.14,.9,.6), high:c(.09,.85,.5), sand:c(.03,.8,.4), rock:c(.0,.6,.3)})]],
+  'Rusty moon': [['Red dust moon', (v,k) => ({crater:.4, low:c(.01,.65,.38), high:c(.03,.55,.48)})]],
+  'Dark moon': [['Tar moon', (v,k) => ({crater:.3, low:c(.07,.3,.08), high:c(.06,.25,.12), rock:c(.05,.2,.16)})]],
+  'Archipelago': [['Atoll world', (v,k) => ({sea:.32, freq:3+v()*1.5, shallow:c(.47,.85,.55), sand:c(.13,.35,.85)})]],
+  'Tundra': [['Permafrost', (v,k) => ({ice:.35+v()*.1, low:c(.08,.2,.4), low2:c(.6,.1,.6)})]],
+  'Swamp': [['Bog world', (v,k) => ({sea:.06, low:c(.12,.45,.16), low2:c(.08,.5,.12), deep:c(.15,.6,.1), shallow:c(.13,.5,.2)})]],
+  'Toxic': [['Acid world', (v,k) => ({deep:c(.16,1,.3), shallow:c(.17,1,.5), cloudCol:c(.16,.8,.75), atmo:c(.17,.9,.55)})]],
+  'Cloud': [['Sulfur clouds', (v,k) => ({cloudCol:c(.13,.75,.7), atmo:c(.12,.8,.6)})]],
+  'Haze': [['Methane haze', (v,k) => ({cloudCol:c(.08,.55,.6), atmo:c(.55,.5,.6)})]],
+  'Barren': [['Scorched', (v,k) => ({low:c(.05,.25,.25), high:c(.04,.3,.32), rock:c(.03,.35,.2), glow:.08})]],
+  'Dune': [['White dunes', (v,k) => ({sand:c(.1,.15,.85), low:c(.1,.12,.8), high:c(.09,.15,.72)})]],
+  'Hot Jupiter': [['Inferno giant', (v,k) => ({glow:1.4, low:c(.6,.4,.3), high:c(.62,.5,.4), rock:c(.58,.3,.2), snow:c(.6,.6,.7), atmo:c(.6,.8,.6)})]],
+  'Alien': [['Teal-sea alien', (v,k) => ({deep:c(.5,.9,.2), shallow:c(.48,.9,.4)})]],
 };
 // maybe turn kind k (already made from the main stream) into one of its variants; returns the name to show
 export function rollVariant(name, k){

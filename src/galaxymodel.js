@@ -70,10 +70,15 @@ export function galaxyParams(seed, home = false){
   const tint = home ? .5 : x();   // a few red, dead spirals and blue starbursts
   if (type==='spiral' && tint < .12){ g.arm = c(.08, .35, .66); g.hii.multiplyScalar(.3); g.dead = true; }
   if (tint > .9){ g.arm = c(.6, .55, .72); g.hii = c(.93, .8, .66); g.starburst = true; }
+  // shapes of spiral: lenticular (a smooth disk, no arms) and grand-design (two clean, bold arms)
+  const shape = home ? .5 : x();
+  if (type==='spiral' && shape < .12){ g.arms = 0; g.dust *= .3; g.rb *= 1.4; g.lenticular = true; }
+  else if (type==='spiral' && shape > .86){ g.arms = 2; g.sharp = 4.2; g.pitch = .3; g.grand = true; }
   g.r0 = g.bar || g.rb*1.6;
   g.name = home ? 'the Forge' : galaxyName(r, type);
   g.home = home;
-  g.label = home ? 'Barred spiral galaxy (home)' : (g.dwarf ? 'Dwarf ' : '')+{spiral:'spiral galaxy', barred:'barred spiral galaxy', elliptical:'elliptical galaxy', irregular:'irregular galaxy'}[kind]
+  g.label = home ? 'Barred spiral galaxy (home)' : (g.dwarf ? 'Dwarf ' : '')+(g.lenticular ? 'lenticular galaxy' : g.grand ? 'grand-design spiral'
+    : {spiral:'spiral galaxy', barred:'barred spiral galaxy', elliptical:'elliptical galaxy', irregular:'irregular galaxy'}[kind])
     +(g.dead ? ' (no new stars)' : g.starburst ? ' (starburst)' : '');
   g.label = g.label[0].toUpperCase()+g.label.slice(1);
   return g;

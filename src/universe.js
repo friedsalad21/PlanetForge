@@ -59,6 +59,14 @@ export function makeUniverse(U){
     if (gi===0) quat.setFromEuler(new THREE.Euler(.5, 0, .25));
     gals.push({gi, seed, g, pos:p, quat, Ru:g.R/GU_PER_UU});
   }
+  // colliding pairs: now and then a galaxy is pulled right up against its neighbour (own stream, others stay put)
+  const cr = rngFor(mix64(U, 0xC011DEn));
+  for (let gi=2; gi<N; gi++){
+    if (cr() > .04) continue;
+    const a = gals[gi-1], o = gals[gi], dir = new THREE.Vector3(cr()-.5, cr()-.5, cr()-.5).normalize();
+    o.pos.copy(a.pos).addScaledVector(dir, (a.Ru+o.Ru)*(.7+cr()*.5));
+    o.g.label += ' (colliding with '+a.g.name+')'; a.g.label += ' (colliding with '+o.g.name+')';
+  }
   const mesh = makeImpostorMesh(N), deep = makeImpostorMesh(N);
   for (const o of gals){ setImpostor(mesh, o.gi, o.g, o.pos, o.quat, o.Ru); setImpostor(deep, o.gi, o.g, o.pos, o.quat, o.Ru); }
   universeScene.add(mesh); deepScene.add(deep);

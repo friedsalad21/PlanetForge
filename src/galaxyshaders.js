@@ -30,8 +30,8 @@ vec3 diskEmit(vec3 p, Gal g, out float dust){
   else {
     ph=armPhase(p.xz,g);
     float inner=smoothstep(g.r0*.5,g.r0*1.3,r);
-    a=pow(.5+.5*cos(ph),g.sharp)*inner;
-    da=pow(.5+.5*cos(ph-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r);   // dust lanes hug the inside of each arm
+    a=g.arms>.5 ? pow(.5+.5*cos(ph),g.sharp)*inner : 0.;                    // (no arms: a lenticular galaxy)
+    da=g.arms>.5 ? pow(.5+.5*cos(ph-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r) : .25;   // dust lanes hug the inside of each arm
   }
   vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));   // irregulars are thick: shear the noise with height so it isn't extruded
   float n=fbm2(sh*14.,g.seed+7u);
@@ -57,7 +57,7 @@ vec3 diskEmit(vec3 p, Gal g, out float dust){
 // pink star-forming knots: a thin layer, so they're drawn where the ray crosses the mid-plane (crisp from any angle)
 vec3 knots(vec2 q, Gal g){
   if(g.t>.5&&g.t<1.5) return vec3(0.);
-  float r=length(q), a=g.t>1.5 ? irrOf(q,g) : pow(.5+.5*cos(armPhase(q,g)),g.sharp)*smoothstep(g.r0*.5,g.r0*1.3,r);
+  float r=length(q), a=g.t>1.5 ? irrOf(q,g) : g.arms>.5 ? pow(.5+.5*cos(armPhase(q,g)),g.sharp)*smoothstep(g.r0*.5,g.r0*1.3,r) : 0.;
   if(a<.45) return vec3(0.);
   float kn=vnoise(q*85.,g.seed+3u)*.65+vnoise(q*170.,g.seed+5u)*.35;
   float irr=g.t>1.5 ? 1. : 0.;
@@ -73,7 +73,7 @@ float knotPath(vec3 d, Gal g){ return min(1./max(abs(d.y),1e-3),1./(1.2*g.hz)); 
 float dustAt(vec3 p, Gal g){
   if(g.t>.5&&g.t<1.5) return 0.;
   float r=length(p.xz), da=.5;
-  if(g.t<1.5) da=pow(.5+.5*cos(armPhase(p.xz,g)-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r);
+  if(g.t<1.5) da=g.arms>.5 ? pow(.5+.5*cos(armPhase(p.xz,g)-.6),g.sharp*1.4)*smoothstep(g.r0*.4,g.r0*1.1,r) : .25;
   vec2 sh=p.xz+(g.t>1.5 ? p.y*vec2(1.7,-1.3) : vec2(0.));
   float n=fbm2(sh*14.,g.seed+7u);
   return g.dust*exp(-r/(g.hR*1.4))*exp(-abs(p.y)/(g.hz*.5))/(g.hz)*(.08+da)*(.3+1.4*n)*.22*(g.t>1.5 ? .35 : 1.);

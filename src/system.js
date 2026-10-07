@@ -1,7 +1,7 @@
 // Builds a world from its seed (a lone planet, a star system or a black hole), keeps it moving, and lights it.
 import * as THREE from 'three';
 import { S, opts } from './state.js';
-import { scene, skyScene, tilt, root, camera, renderer, SUN, sunSprite, CORONA_TEX, SOFT_TEX, keyLight, starLight, pxScale } from './scene.js';
+import { scene, skyScene, tilt, root, camera, renderer, SUN, sunSprite, CORONA_TEX, SOFT_TEX, ROUND_TEX, keyLight, starLight, pxScale } from './scene.js';
 import { starMat, nebulaMat, blackHoleMat, dotMat } from './materials.js';
 import { rngFor, c, WHITE, KIND_POOL, VR, notWorld, STAR_VARIANTS, SUN_POOL, STAR_POOL, STAR_TYPES, STAR_PHYS, EXOTIC_STARS, ROGUE_POOL, NOT_WORLD,
   makeName } from './gen.js';
@@ -52,12 +52,13 @@ function clearSystem(){
   for (const w of S.worlds) disposeWorld(w);
   for (const s of S.stars){ s.mesh.material.dispose(); s.corona.material.dispose(); s.mesh.removeFromParent(); }
   const drop = o => { if (!o) return; o.traverse(n => { n.geometry?.dispose?.(); n.material?.dispose?.(); }); o.removeFromParent(); };
+  for (const o of S.extras) drop(o);
   drop(S.belt); drop(S.dyson?.group); drop(S.pulsar?.group); drop(S.bh); drop(S.disk);
   for (const cm of S.comets) drop(cm.group);
   for (const sh of S.shells) drop(sh);
   for (const l of [...S.orbitLines.children]){ l.geometry.dispose(); l.removeFromParent(); }
-  Object.assign(S, {worlds:[], stars:[], bodies:[], comets:[], shells:[], belt:null, dyson:null, pulsar:null, bh:null, disk:null,
-    finds:[], rogue:false});
+  Object.assign(S, {worlds:[], stars:[], bodies:[], comets:[], shells:[], extras:[], belt:null, dyson:null, pulsar:null, bh:null, disk:null,
+    finds:[], rogue:false, contact:false});
   root.position.set(0,0,0);
 }
 
@@ -179,7 +180,9 @@ function buildStarSystem(r, x, pick){
   if (isBinary){
     const sB = makeStar(B, r);
     S.stars.push(sB);
-    const sep = A.size+B.size+.5+r()*.8, M = sA.mass+sB.mass;
+    let sep = A.size+B.size+.5+r()*.8;
+    const M = sA.mass+sB.mass;
+    if (VR.r() < .15){ sep = (A.size+B.size)*.88; S.contact = true; }   // a contact binary: the two stars touch
     // the two stars swing round their shared centre of mass on ellipses; the heavier one moves less
     const e = Math.min(x()*.4, 1-(A.size+B.size+.25)/sep);
     const rel = new Orbit({a:sep, e:Math.max(e,0), peri:x()*Math.PI*2, M0:x()*Math.PI*2, n:meanMotion(visMass(M), sep)});
@@ -290,7 +293,9 @@ function buildStarSystem(r, x, pick){
   if (A.name==='white dwarf' && x() < .5){            // planetary nebula: the shed outer layers of the dead star
     const R = Math.max(4, sys*1.3), h = .45+x()*.15;
     S.shells.push(makeShell(x, R*.55, c(h, .8, .55), c(h+.05, .7, .6), {fil:.4, str:1.3, freq:2.5}));
-    S.shells.push(makeShell(x, R, c(.98, .85, .55), c(h, .7, .5), {fil:1, waist:1, str:1.1, squash:1.3+x()*.5}));
+    const shape = VR.r(), sq = 1.3+x()*.5;   // usual, butterfly (bipolar) or ring-shaped
+    S.shells.push(makeShell(x, R, c(.98, .85, .55), c(h, .7, .5), {fil:1, waist:1, str:1.1, squash:shape<.3 ? 2.6 : shape<.5 ? .35 : sq}));
+    if (shape<.5) S.bits.push(shape<.3 ? 'a butterfly-shaped nebula' : 'a ring nebula');
     S.finds.push(['planetary nebula', .5/13]);
   }
   if (A.name==='neutron star' && x() < .55){          // supernova remnant: the blast wave's tangled filaments
@@ -313,7 +318,23 @@ function buildStarSystem(r, x, pick){
   const head = wide==='Trinary' ? `Trinary: ${S.stars.map(s => s.name).join(' + ')}`
     : isBinary ? 'Binary: '+A.name+' + '+B.name
     : wide ? `Wide binary: ${A.name} + distant ${S.stars[1].name}` : A.name;
-  S.bits = [head[0].toUpperCase()+head.slice(1), `${n} planet${n>1?'s':''}: `+S.worlds.map(describe).join(', ')];
+  const head2 = S.contact ? head.replace(/^Binary/, 'Contact binary') : head;
+  S.bits = [head2[0].toUpperCase()+head2.slice(1), `${n} planet${n>1?'s':''}: `+S.worlds.map(describe).join(', ')];
+  if (S.contact) S.finds.push(['contact binary', .3*.15]);
+  // the outskirts (variant stream): an icy Kuiper belt, a faint Oort cloud of comets, or a dusty debris disk
+  const v = VR.r, outer = Math.max(cursor, ...S.comets.map(cm => cm.orbit.a));
+  if (v() < .3){
+    const kb = icyRing(v, outer*1.25+1, .5+outer*.12, 4000, c(.58,.25,.75), .016);
+    tilt.add(kb); S.extras.push(kb); S.bits.push('Kuiper belt'); S.finds.push(['Kuiper belt', .3]);
+  }
+  if (v() < .15){
+    const oc = oortCloud(v, outer*2.2+4, 2500);
+    tilt.add(oc); S.extras.push(oc); S.bits.push('Oort cloud'); S.finds.push(['Oort cloud', .15]);
+  }
+  if (!S.disk && v() < .1){
+    const d = makeDustDisk(cursor+.6, cursor*1.5+1.5, [], c(.08,.25,.45), c(.6,.1,.3));
+    tilt.add(d); S.extras.push(d); S.bits.push('a debris disk'); S.finds.push(['debris disk', .1]);
+  }
   if (S.belt) S.bits.push('asteroid belt');
   if (nComets) S.bits.push(nComets>1 ? 'two comets' : 'a comet');
   if (S.dyson) S.bits.push(S.dyson.shell ? 'an unfinished Dyson shell' : 'a Dyson swarm');
@@ -322,6 +343,20 @@ function buildStarSystem(r, x, pick){
   if (exotic==='protostar') S.bits.push('planets still forming');
   S.finds.push(['star system', force.mode ? 1 : .2]);
   return Math.max(cursor, ...S.comets.map(cm => cm.orbit.apo*.6));
+}
+
+// a thin ring of icy bodies, and a faint spherical cloud of comets far beyond the planets
+function icyRing(v, radius, width, N, col, size){
+  const pos = new Float32Array(N*3);
+  for (let i=0;i<N;i++){ const a = v()*Math.PI*2, d = radius+(v()+v()+v()-1.5)*width; pos.set([Math.cos(a)*d, (v()-.5)*width*.25, Math.sin(a)*d], i*3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({size, sizeAttenuation:true, transparent:true, opacity:.8, depthWrite:false, map:ROUND_TEX, color:col}));
+}
+function oortCloud(v, radius, N){
+  const pos = new Float32Array(N*3), p = new THREE.Vector3();
+  for (let i=0;i<N;i++){ p.set(v()*2-1, v()*2-1, v()*2-1).normalize().multiplyScalar(radius*(.8+v()*.5)); pos.set([p.x, p.y, p.z], i*3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({size:2, sizeAttenuation:false, transparent:true, opacity:.35, depthWrite:false, map:ROUND_TEX, color:c(.55,.2,.8)}));
 }
 
 // --- black hole ---
