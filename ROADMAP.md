@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (your zoom is kept between worlds again).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (your zoom is kept between worlds and between planets).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
@@ -199,6 +199,6 @@ Still open from phase 4:
   - A galaxy star system's sky no longer shows visited-star rings or streaks from edge-on star-forming knots
   - Galaxy shaders: shorter loops (much faster to compile on Windows), the nebula shader is warmed up, and every shader is drawn once off screen before it's needed
   - Clicking in a galaxy or the universe no longer locks the view for seconds
-  - Your zoom is kept between worlds again (lost when the code was split into modules): zoom the system view in or out and new worlds open at that distance; zoom back to the default framing to get automatic framing again
+  - Your zoom is kept between worlds again (lost when the code was split into modules): zoom the system view in or out and new worlds open at that distance; zoom back to the default framing to get automatic framing again. The same between planets, moons and stars: zoom in close on one and the next you click (or Tab to) is framed just as close for its size
   - Every shader now uses the exact integer hash (craters, city lights, volcano spots, lightning) instead of `fract(sin())`; fine details like crater spots and city layouts shifted once, worlds themselves are unchanged
 - [x] Visual polish from testing: cities as connected sprawl with roads, crisp self-shadowing clouds, fine ring detail that stays sharp from below, real cratered asteroids and comet nuclei, four kinds of crystal world, faint polar hexagons, auroral rings around tipped magnetic poles
