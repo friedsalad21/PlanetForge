@@ -10,7 +10,7 @@ Notes for anyone (human or AI) making changes here. Sean (the owner) asked for t
 
 ## Keep in mind
 
-- Seeds must stay stable: old links (`#123`, `#123-p2m1`, `#g0.s1234`) should keep showing the same worlds. New random choices go on the second random stream (`x` / `extraRng`) or a separately seeded one, never in the middle of the original `r` stream.
+- Old links (`#123`, `#123-p2m1`, `#g0.s1234`) don't have to keep showing the same worlds: new features may change what a seed generates when needed. Sean is fine with that.
 - The "To review" items in `ROADMAP.md` (pulsar beams, black hole warping and zoom limit) are only to be done when Sean asks.
 - The page must be served over http (ES modules); `python3 -m http.server` in the repo is enough. Nothing is built; three.js is bundled in `lib/`.
 - Shaders: for random numbers use `rhash` / `hash3` / `n1` from `src/shaders.js` (exact integer hashes), never `fract(sin(x))`, which breaks on many GPUs. Keep shader loops short (64 or less where possible): long loops are slow to compile on Windows/DirectX.
