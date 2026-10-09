@@ -5,7 +5,8 @@ Notes for anyone (human or AI) making changes here. Sean (the owner) asked for t
 ## Every change
 
 - **Update the docs in the same commit:** tick or add items in `ROADMAP.md` (and bump its "Last updated" line), tick anything new in `VARIANTS.md` (the list of every kind of thing in space and which we have), and keep `README.md` in step with what the site does (features, controls, links, the code table). New controls also go in the help panel in `index.html`, and new wallpaper settings in `project.json`.
-- **Commit and push to `main`.** GitHub Pages deploys from `main` automatically; don't wait for it to go live.
+- **New features go on their own branch, not `main`.** `main` is the live site (GitHub Pages deploys it automatically), so it must always work. Branch from `main` as `feature/<short-name>`, commit and push there, and open a pull request into `main` for Sean to review. Only merge it when Sean says it works. Merge with a merge commit (not squash or rebase), so a broken feature can be undone in one step with the "Revert" button on its pull request.
+- Small fixes to docs or notes (like this file) can go straight to `main`.
 - **Leave nothing running:** stop local test servers and browsers when done.
 
 ## Keep in mind
