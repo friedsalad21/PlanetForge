@@ -1,7 +1,7 @@
 # PlanetForge roadmap
 
 Ideas and planned features, roughly in the order they make sense to build. Tick items off (`- [x]`) as they ship.
-This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 7 October 2026** (added section 12: WebGPU ideas, to consider next).
+This file and the README are updated with every change (see `CLAUDE.md`). **Last updated: 9 October 2026** (added section 13: cities and life up close on inhabited worlds; stage 1 in progress on the `feature/city-zoom` branch).
 The long-term goal is a **No Man's Sky-style explorable universe**: everything generated from seeds, nothing stored, endless to explore.
 
 ## How it fits together
@@ -53,6 +53,16 @@ Who gets WebGPU (at the time of writing): Chrome and Edge on Windows, Mac and Ch
 - [ ] **Ring and belt particles as real orbiting bodies:** each particle moved by a compute shader on its own Kepler orbit
 - [ ] **Landing terrain** (phase 7): build the ground meshes in compute shaders as you fly down
 - [ ] **Wallpaper Engine check:** find out whether its built-in browser supports WebGPU; if it doesn't, the WebGL 2 fallback keeps the wallpaper working as now
+
+## 13. Cities and life up close (in progress)
+
+Zoom into an inhabited world and keep going: cities, streets, then life on the ground. One sphere shader can't hold that much detail (32-bit precision runs out long before street level), so the view changes as you get closer, each stage seeded from the same terrain so coastlines and cities line up with what you saw from orbit.
+
+- [x] **Stage 1, from orbit:** cities show by day too, as grey sprawl with ragged edges and pale town centres where the night lights are; zoomed in they break up into districts, then avenues, then side streets with single roofs and the odd park. Each town lays its streets out at its own angle. At night the streets light up.
+- [ ] Planes and shipping lanes as moving lights around inhabited worlds
+- [ ] **Stage 2, descent (roughly 50 km to 1 km):** past a set height, swap to a flat patch of terrain under the camera, built from the same height and city functions; cities as simple instanced buildings along the streets seen from orbit; fields, forests and water by biome. Coordinates centred on the patch so nothing jitters. Smooth handover with no pop.
+- [ ] **Stage 3, street level (below 1 km):** buildings with lit windows, traffic as moving instanced lights, flora and creatures as instanced shapes per biome, day and night from the real sun angle
+- [ ] Lower the zoom limit on inhabited worlds once stage 2 exists (today it stops just above the atmosphere)
 
 ## 1. Free movement (do first: everything else builds on it)
 

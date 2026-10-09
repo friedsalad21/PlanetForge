@@ -205,6 +205,51 @@ export const bodyMat = new THREE.ShaderMaterial({
       glow*=1.-ice;
       if(uTwoTone>0.) col*=mix(1.,.16,smoothstep(-.35,.35,p.x+snoise(p*3.+uSeed)*.15));   // one dark hemisphere (Iapetus)
     }
+    // cities: populated regions (busiest along coasts and lowlands) with metro cores. By day the built-up land shows
+    // as grey sprawl that breaks up into blocks of roofs, parks and streets as you zoom in (avenues, then side
+    // streets); at night the same places light up: suburbs that break up into single lights, lit roads and streets
+    float land=(1.-water)*step(.01,t)*step(t,.45);
+    float region=smoothstep(-.15,.45,snoise(p*5.+uSeed.zxy));
+    float pop=region*(1.+1.5*(1.-smoothstep(0.,.08,t)));
+    float metro=pow(max(snoise(p*24.+uSeed),0.),1.5);
+    // single lights at two scales (towns, then streets); each fades to its average brightness once it's smaller
+    // than a pixel, so the glow stays the same overall but always resolves into points as you zoom in
+    float dens=.25+metro*.6;
+    float n1s=1.-smoothstep(.15,.6,gPx*90.), n2s=1.-smoothstep(.15,.6,gPx*320.);
+    float avg=dens*.26;
+    float grain=mix(avg,mix(cityLights(p,90.,dens),cityLights(p,90.,dens)*.4+cityLights(p,320.,dens)*.6,n2s),n1s);
+    float road=(1.-smoothstep(0.,.02,abs(snoise(p*16.+uSeed.yzx))))*region*.3*(1.-smoothstep(.05,.3,gPx*16.));
+    float streetGlow=0.;
+    if(uCity>0.){
+      // districts are cells of a cube grid; each town (a coarser cell) lays its streets out as a flat square grid at its
+      // own angle, avenues then side streets with single roofs. Each layer fades in once it's a few pixels across.
+      // (derivatives are taken here, before any branch that differs from pixel to pixel)
+      vec3 qd=p*150.+uSeed*5., ct=floor(p*30.+uSeed*2.)+.5;
+      vec3 hd=hash3(floor(qd)+uSeed.yzx), ht=hash3(ct+uSeed.zxy);
+      vec3 cd=normalize(ct-uSeed*2.);
+      vec3 e1=normalize(cross(cd,abs(cd.y)<.9?vec3(0,1,0):vec3(1,0,0))), e2=cross(cd,e1);
+      float ang=ht.x*6.283; vec3 g1=e1*cos(ang)+e2*sin(ang), g2=cross(cd,g1);
+      vec2 uv=vec2(dot(p,g1),dot(p,g2)), qa=uv*600.+ht.yz*9., qs=uv*2400.+ht.zy*5.;
+      vec2 wa=max(fwidth(qa)*.8,vec2(.03)), ws=max(fwidth(qs)*.8,vec2(.05));
+      float dS=1.-smoothstep(.2,.7,gPx*150.), aS=1.-smoothstep(.15,.6,gPx*600.), sS=1.-smoothstep(.15,.6,gPx*2400.);
+      // built-up land: dense around metro cores, with ragged, blocky edges where districts stop
+      float want=pop*(metro*1.3+.1+snoise(p*40.+uSeed.yzx)*.1);
+      float edge=snoise(p*150.+uSeed.zxy)*.6+snoise(p*420.+uSeed)*.4*dS;
+      float built=land*smoothstep(.08,.45,want*(1.+edge*mix(.5,1.,dS))+grain*pop*.35);
+      float sg=0., roof=mix(.5,hd.y,dS*.6), park=0.;
+      if(aS>0. && built>.01){
+        vec2 la=1.-smoothstep(wa*.5,wa*1.5,.5-abs(fract(qa)-.5));
+        vec2 ls=1.-smoothstep(ws*.5,ws*1.5,.5-abs(fract(qs)-.5));
+        sg=max(max(la.x,la.y)*aS, max(ls.x,ls.y)*sS*.75);
+        roof=mix(roof,mix(roof,hash3(vec3(floor(qs),ht.x*97.)).x,.7),sS);
+        park=step(.86,hash3(vec3(floor(qa),ht.y*97.)).y)*aS*(1.-metro*.8);
+      }
+      vec3 urbanCol=mix(vec3(.22,.23,.25),vec3(.5,.5,.5),roof)*mix(1.,1.2,metro)*(.75+.5*min(grain,1.));   // towns show as pale spots
+      urbanCol=mix(urbanCol,uLow*.85,park);
+      urbanCol=mix(urbanCol,vec3(.16,.16,.17),sg*(1.-park*.6));
+      col=mix(col,urbanCol,built*.9*uCity);
+      streetGlow=built*sg*(.5+metro*.6)*.3;
+    }
     vec3 v=normalize(uCam-p);
     float ndl=dot(n,uSun);
     float lit=(1.-ringShadow(p,uSun)*.85)*eclipse(p,uSun);   // ring shadows and eclipses by moons
@@ -225,20 +270,7 @@ export const bodyMat = new THREE.ShaderMaterial({
     c+=ice*day*uSunCol*pow(nh,60.)*.25;                        // icy sheen
     c+=uLava*water*col*1.5;                                    // glowing seas
     c+=uGlow*col*(1.-day)*1.2;                                 // red-hot night side
-    // night-side cities: populated regions (busiest along coasts and lowlands) with bright metro cores, suburbs
-    // that break up into single lights as you zoom in, and lit roads joining them
-    float land=(1.-water)*step(.01,t)*step(t,.45);
-    float region=smoothstep(-.15,.45,snoise(p*5.+uSeed.zxy));
-    float pop=region*(1.+1.5*(1.-smoothstep(0.,.08,t)));
-    float metro=pow(max(snoise(p*24.+uSeed),0.),1.5);
-    // single lights at two scales (towns, then streets); each fades to its average brightness once it's smaller
-    // than a pixel, so the glow stays the same overall but always resolves into points as you zoom in
-    float dens=.25+metro*.6;
-    float n1s=1.-smoothstep(.15,.6,gPx*90.), n2s=1.-smoothstep(.15,.6,gPx*320.);
-    float avg=dens*.26;
-    float grain=mix(avg,mix(cityLights(p,90.,dens),cityLights(p,90.,dens)*.4+cityLights(p,320.,dens)*.6,n2s),n1s);
-    float road=(1.-smoothstep(0.,.02,abs(snoise(p*16.+uSeed.yzx))))*region*.3*(1.-smoothstep(.05,.3,gPx*16.));
-    float lights=land*(pop*(metro*.35+grain*.7)+road);
+    float lights=land*(pop*(metro*.35+grain*.7)+road)+streetGlow;
     vec3 lightCol=mix(vec3(1.,.66,.3),vec3(1.,.88,.72),metro);                 // city centres burn whiter
     c+=uCity*lights*lightCol*1.3*(1.-smoothstep(-.2,.05,dot(p,uSun)));
     c+=uVolcCol*glow*(.6+.9*(1.-day));
