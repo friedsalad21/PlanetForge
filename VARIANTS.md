@@ -228,7 +228,7 @@ Use it to see what's in and to pick what to add next. Tick items off (`- [x]`) a
 
 ## Artificial and alien
 
-- [x] Space stations, drifting derelicts, Dyson swarms, unfinished Dyson shells, night-side cities with roads
+- [x] Space stations, drifting derelicts, Dyson swarms, unfinished Dyson shells, night-side cities with roads, day-side cities with street grids
   - [ ] ⭐ Ringworlds and orbital habitats: O'Neill cylinders, Stanford tori, Bishop rings
   - [ ] ⭐ Alien beacons and monoliths: rare, mysterious finds
   - [ ] Space elevators and orbital rings on inhabited worlds
